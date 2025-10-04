@@ -64,7 +64,7 @@ export default function OnlineUsersDisplay() {
           Usuários Online ({onlineUsers.length})
         </h3>
         <p className="mt-1 max-w-2xl text-sm text-gray-500">
-          Atualizado automaticamente a cada 30 segundos
+          Atualizado automaticamente a cada 2 minutos
         </p>
       </div>
       

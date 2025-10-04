@@ -20,8 +20,8 @@ export async function GET() {
     const supabase = createServerClient();
 
     const now = new Date();
-    // Considera online quem teve heartbeat nos últimos 90 segundos
-    const limite = new Date(now.getTime() - 90 * 1000).toISOString();
+    // Considera online quem teve heartbeat nos últimos 180 segundos (compatível com intervalo de 2 minutos do heartbeat)
+    const limite = new Date(now.getTime() - 180 * 1000).toISOString();
 
     const { data, error } = await supabase
       .from('usuarios')
