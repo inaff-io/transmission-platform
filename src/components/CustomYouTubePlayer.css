@@ -1,0 +1,135 @@
+/* Estilos específicos para bloquear elementos do YouTube Player */
+
+/* Base do player para esconder o iframe e substituir com nossa interface */
+.custom-youtube-player {
+  position: relative;
+  overflow: hidden;
+  background-color: #000;
+}
+
+/* Esconde o iframe original do YouTube completamente */
+.custom-youtube-player iframe {
+  opacity: 0;
+  pointer-events: none !important;
+  z-index: 1;
+  position: absolute;
+}
+
+/* Bloqueia TODAS as classes indesejadas do YouTube */
+.ytp-impression-link,
+.ytp-cued-thumbnail-overlay-image,
+.ytp-title,
+.ytp-chrome-top,
+.ytp-show-cards-title,
+.ytp-watermark,
+.ytp-ce-element,
+.ytp-cards-button,
+.ytp-youtube-button,
+.ytp-title-link,
+.ytp-info-panel-detail,
+.ytp-large-play-button,
+.ytp-cued-thumbnail-overlay,
+.ytp-time-display,
+.ytp-spinner,
+.ytp-chrome-controls,
+.ytp-chrome-bottom,
+.ytp-pause-overlay,
+.ytp-share-panel,
+.ytp-right-controls,
+.ytp-left-controls,
+.ytp-iv-player-content,
+.annotation,
+.ytp-gradient-top,
+.ytp-gradient-bottom,
+.ytp-button {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Sobrescrita específica para a classe ytp-impression-link */
+.ytp-impression-link {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  z-index: -999 !important;
+  clip: rect(0, 0, 0, 0) !important;
+}
+
+/* Overlay completo para impedir qualquer interação com elementos do YouTube */
+.custom-youtube-player .blocking-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999;
+  pointer-events: all;
+  background-color: transparent;
+}
+
+/* Overlays estratégicos para áreas problemáticas */
+/* Overlay superior para bloquear botões/links no topo */
+.custom-youtube-player .top-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  z-index: 999;
+  pointer-events: all;
+  background-color: transparent;
+}
+
+/* Overlay inferior para bloquear controles nativos */
+.custom-youtube-player .bottom-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  z-index: 999;
+  pointer-events: all;
+  background-color: transparent;
+}
+
+/* Overlay de canto superior direito (onde o link do YouTube geralmente aparece) */
+.custom-youtube-player .corner-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 200px;
+  height: 150px;
+  z-index: 999;
+  pointer-events: all;
+  background-color: transparent;
+}
+
+/* Cores para overlay de depuração (visíveis quando showDebugOverlay=true) */
+.custom-youtube-player .top-overlay.debug {
+  background-color: rgba(255, 0, 0, 0.2) !important;
+}
+
+.custom-youtube-player .bottom-overlay.debug {
+  background-color: rgba(0, 0, 255, 0.2) !important;
+}
+
+.custom-youtube-player .corner-overlay.debug {
+  background-color: rgba(0, 255, 0, 0.2) !important;
+}
+
+.custom-youtube-player .blocking-overlay.debug {
+  background-color: rgba(255, 255, 0, 0.1) !important;
+}
+
+/* Estilos para a barra de progresso */
+.custom-youtube-player .progress-red {
+  background: linear-gradient(to right, #ef4444 var(--progress-percent), #4b5563 var(--progress-percent)) !important;
+}

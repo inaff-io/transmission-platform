@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Bloqueia elementos indesejados do YouTube Player */
+.ytp-impression-link,
+.ytp-cued-thumbnail-overlay-image,
+.ytp-title,
+.ytp-chrome-top,
+.ytp-show-cards-title,
+.ytp-watermark,
+.ytp-ce-element,
+.ytp-cards-button,
+.ytp-info-panel-detail,
+.annotation {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Bloqueia logo do YouTube */
+.ytp-youtube-button {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Bloqueia botão "Assistir no YouTube" */
+.ytp-large-play-button,
+.ytp-cued-thumbnail-overlay {
+  pointer-events: none !important;
+}
