@@ -1,0 +1,153 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de Usuário
+model Usuario {
+  id          String    @id @default(uuid())
+  categoria   String    @default("user")
+  nome        String
+  email       String    @unique
+  cpf         String    @unique
+  status      Boolean   @default(true)
+  lastActive  DateTime? @map("last_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relacionamentos
+  perguntas        Pergunta[]
+  chatMensagens    Chat[]
+  historicoAcessos HistoricoAcesso[]
+  sessoes          Sessao[]
+  notificacoes     Notificacao[]
+
+  @@map("usuarios")
+}
+
+// Modelo de Programação
+model Programacao {
+  id        String   @id @default(uuid())
+  titulo    String
+  urlIframe String   @map("url_iframe")
+  ordem     Int
+  tipo      String   @default("programacao")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("programacoes")
+}
+
+// Modelo de Transmissão
+model Transmissao {
+  id        String   @id @default(uuid())
+  titulo    String
+  vimeoId   String   @map("vimeo_id")
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("transmissoes")
+}
+
+// Modelo de Configurações (Feature Flags)
+model Configuracao {
+  id        String   @id @default(uuid())
+  chave     String   @unique
+  valor     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("configuracoes")
+}
+
+// Modelo de Materiais
+model Material {
+  id        String   @id @default(uuid())
+  titulo    String
+  urlPdf    String   @map("url_pdf")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("materiais")
+}
+
+// Modelo de Perguntas (Q&A)
+model Pergunta {
+  id        String   @id @default(uuid())
+  usuarioId String   @map("usuario_id")
+  pergunta  String
+  resposta  String?
+  status    String   @default("pendente") // pendente, respondida, rejeitada
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relacionamento
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@map("perguntas")
+}
+
+// Modelo de Chat
+model Chat {
+  id        String   @id @default(uuid())
+  usuarioId String   @map("usuario_id")
+  mensagem  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relacionamento
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@map("chat")
+}
+
+// Modelo de Histórico de Acessos
+model HistoricoAcesso {
+  id        String   @id @default(uuid())
+  usuarioId String   @map("usuario_id")
+  acao     String   // login, logout, heartbeat
+  ip       String?
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relacionamento
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@map("historico_acessos")
+}
+
+// Modelo de Sessões
+model Sessao {
+  id         String    @id @default(uuid())
+  usuarioId  String    @map("usuario_id")
+  iniciadaEm DateTime  @default(now()) @map("iniciada_em")
+  finalizadaEm DateTime? @map("finalizada_em")
+  duracao    Int?      // duração em segundos
+  
+  // Relacionamento
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id])
+
+  @@map("sessoes")
+}
+
+// Modelo de Notificações
+model Notificacao {
+  id        String   @id @default(uuid())
+  usuarioId String   @map("usuario_id")
+  tipo      String   // entrada, saida, inatividade
+  mensagem  String
+  lida      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relacionamento
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@map("notificacoes")
+}
