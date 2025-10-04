@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/jwt-server';
 import { createServerClient } from '@/lib/supabase/server';
+import { createPgClient } from '@/lib/db/pg-client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,28 +22,17 @@ export async function GET(request: NextRequest) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const supabase = createServerClient();
-    const { data: user } = await supabase
-      .from('usuarios')
-      .select('categoria')
-      .eq('email', payload.email)
-      .single();
-
-    if (!user?.categoria?.includes('admin')) {
+    // Autoriza com base na categoria presente no token JWT
+    if (!payload?.categoria?.includes('admin')) {
       return new NextResponse('Forbidden', { status: 403 });
     }
 
-    const { data: usuarios, error } = await supabase
-      .from('usuarios')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const client = createPgClient();
+    await client.connect();
+    const result = await client.query('SELECT * FROM usuarios ORDER BY created_at DESC');
+    await client.end();
 
-    if (error) {
-      console.error('Erro ao buscar usuários:', error);
-      return new NextResponse('Internal Server Error', { status: 500 });
-    }
-
-    return NextResponse.json(usuarios);
+    return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Erro:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
