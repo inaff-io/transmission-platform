@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './styles.css';
 import { useRouter } from 'next/navigation';
 import type { Link, Usuario } from '@/types/database';
@@ -31,6 +31,7 @@ export default function TransmissionPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [showChat, setShowChat] = useState(false);
+  const notiActiveRef = useRef<Set<string>>(new Set());
 
   const handleLogout = useCallback(() => {
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include', keepalive: true })
@@ -53,18 +54,21 @@ export default function TransmissionPage() {
       
       const newTransmissionLink = (data.transmissao as Link) ?? null;
       const newProgramacaoLink = (data.programacao as Link) ?? null;
+
+      const isActive = !!newTransmissionLink?.ativo_em && !!newTransmissionLink?.url;
+      const linkChanged = (newTransmissionLink?.url || null) !== (currentLink?.url || null);
       
-      if (newTransmissionLink?.url !== currentLink?.url) {
-        if (newTransmissionLink) {
+      if (linkChanged) {
+        if (isActive) {
           addNotification('Transmissão atualizada!');
           setIsLive(true);
         } else {
-          addNotification('Transmissão finalizada');
+          if (currentLink) addNotification('Transmissão finalizada');
           setIsLive(false);
         }
       }
       
-      setCurrentLink(newTransmissionLink);
+      setCurrentLink(isActive ? newTransmissionLink : null);
       setProgramacaoLink(newProgramacaoLink);
       setLastUpdate(new Date());
     } catch {}
@@ -75,9 +79,14 @@ export default function TransmissionPage() {
   };
 
   const addNotification = (message: string) => {
+    if (notiActiveRef.current.has(message)) return;
+    notiActiveRef.current.add(message);
     const timestamp = Date.now();
     setNotifications(prev => [...prev, { id: timestamp, message }]);
-    setTimeout(() => removeNotification(timestamp), 3000);
+    setTimeout(() => {
+      removeNotification(timestamp);
+      notiActiveRef.current.delete(message);
+    }, 3000);
   };
 
   const getYouTubeId = (url: string): string => {
@@ -225,16 +234,16 @@ export default function TransmissionPage() {
 
       {headerChecked && !hasManagedHeader && (
         <header className="bg-white shadow-lg border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-3">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${isLive ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                  <span className="text-sm font-medium text-gray-600">{isLive ? 'AO VIVO' : 'OFFLINE'}</span>
+                  <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                  <span className="text-xs font-medium text-gray-600">{isLive ? 'AO VIVO' : 'OFFLINE'}</span>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="flex flex-col sm:flex-row gap-4 text-sm">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 text-xs">
                   <div>
                     <span className="text-gray-500">Usuário: </span>
                     <span className="text-gray-900 font-medium">{user?.nome}</span>
@@ -250,7 +259,7 @@ export default function TransmissionPage() {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-md"
+                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-md"
                 >
                   Sair
                 </button>
@@ -261,17 +270,17 @@ export default function TransmissionPage() {
       )}
 
       {/* Header com Logo do Evento - Responsivo */}
-      <div id="topo" className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-md h-[200px] sm:h-[280px] md:h-[350px] lg:h-[420px] xl:h-[480px] border-b-2 border-gray-200">
+      <div id="topo" className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-md h-[140px] sm:h-[200px] md:h-[260px] lg:h-[320px] xl:h-[360px] border-b-2 border-gray-200">
         <div className="container mx-auto px-2 sm:px-4 md:px-6 h-full">
-          <div className="flex flex-col items-center justify-center h-full py-2 sm:py-3 md:py-4">
+          <div className="flex flex-col items-center justify-center h-full">
             <LogoSection />
           </div>
         </div>
       </div>
 
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex-1 w-full">
-        <div className="flex flex-col xl:flex-row gap-6">
-          <section className="w-full xl:w-[70%] space-y-4">
+        <div className="flex flex-col lg:flex-row gap-6">
+          <section className="w-full lg:w-[70%] space-y-4">
             <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl">
               <h2 className="text-lg font-bold text-gray-900">Transmissão ao Vivo</h2>
             </div>
@@ -315,12 +324,13 @@ export default function TransmissionPage() {
                         <LockedYouTubePlayer
                           videoUrlOrId={videoId}
                           className="w-full aspect-video"
+                          onRequireAudioActivation={() => addNotification('Clique para ativar o áudio')}
                         />
                       );
                     }
                     case 'html': {
-                      // Se o conteúdo HTML for um embed do YouTube, extrair o ID e usar o player bloqueado
-                      const idFromEmbed = (() => {
+                      // Se o conteúdo HTML for um embed do YouTube ou Vimeo, extrair o ID e usar o player apropriado com autoplay
+                      const idFromYouTubeEmbed = (() => {
                         const m1 = trimmed.match(/src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube\.com|youtube-nocookie\.com)\/embed\/([a-zA-Z0-9_-]{11})/);
                         if (m1 && m1[1]) return m1[1];
                         const m2 = trimmed.match(/src=["'](?:https?:)?\/\/(?:www\.)?(?:youtube\.com|youtube-nocookie\.com)\/watch\?[^"']*v=([a-zA-Z0-9_-]{11})/);
@@ -330,16 +340,31 @@ export default function TransmissionPage() {
                         return '';
                       })();
 
-                      if (idFromEmbed) {
+                      if (idFromYouTubeEmbed) {
                         return (
                           <LockedYouTubePlayer
-                            videoUrlOrId={idFromEmbed}
+                            videoUrlOrId={idFromYouTubeEmbed}
+                            className="w-full aspect-video"
+                            onRequireAudioActivation={() => addNotification('Clique para ativar o áudio')}
+                          />
+                        );
+                      }
+
+                      const idFromVimeoEmbed = (() => {
+                        const m1 = trimmed.match(/src=["'](?:https?:)?\/\/player\.vimeo\.com\/video\/(\d+)/);
+                        return m1 && m1[1] ? m1[1] : '';
+                      })();
+
+                      if (idFromVimeoEmbed) {
+                        return (
+                          <VimeoPlayer
+                            videoId={idFromVimeoEmbed}
                             className="w-full aspect-video"
                           />
                         );
                       }
 
-                      // Se não for YouTube (ou não conseguimos ID), renderiza o HTML original, mas com um overlay que bloqueia cliques
+                      // Se não for YouTube/Vimeo (ou não conseguimos ID), renderiza o HTML original, mas com um overlay que bloqueia cliques
                       return (
                         <div className="relative w-full aspect-video">
                           <div 
@@ -379,7 +404,7 @@ export default function TransmissionPage() {
             </div>
           </section>
 
-          <section className="w-full xl:w-[30%] space-y-4">
+          <section className="w-full lg:w-[30%] space-y-4">
             <div className="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
               <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">

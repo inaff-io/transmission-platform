@@ -1,9 +1,21 @@
 import { NextResponse } from 'next/server';
 import { performLogin } from '@/lib/auth/login';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { rateLimit, buildRateLimitHeaders } from '@/lib/utils/rateLimit';
 
 export async function POST(request: Request) {
   try {
+    const headers = new Headers(request.headers);
+    const ip = headers.get('x-forwarded-for') || headers.get('x-real-ip') || 'unknown';
+    const key = `login:${ip}`;
+    const { allowed, info } = rateLimit(key, 5, 60_000);
+    if (!allowed) {
+      const resp = NextResponse.json({ error: 'Muitas tentativas de login. Tente novamente em breve.' }, { status: 429 });
+      const rlHeaders = buildRateLimitHeaders(info);
+      Object.entries(rlHeaders).forEach(([k, v]) => resp.headers.set(k, v));
+      return resp;
+    }
+
     const data = await request.json();
     const { email, cpf } = data;
 

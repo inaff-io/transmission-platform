@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { verifyToken } from '@/lib/jwt-server';
 
 // Rotas que não precisam de autenticação
 const publicRoutes = [
@@ -59,7 +60,21 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Se o token existe, permite o acesso
+    // Valida o token sem consultar o banco
+    try {
+      await verifyToken(token);
+    } catch {
+      if (isApiRoute(req.nextUrl.pathname)) {
+        const response = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        response.cookies.delete('authToken');
+        return response;
+      }
+      const response = NextResponse.redirect(new URL('/auth/login', req.url));
+      response.cookies.delete('authToken');
+      return response;
+    }
+
+    // Se o token é válido, permite o acesso
     return NextResponse.next();
   } catch (error) {
     console.error('Middleware error:', error);

@@ -1,0 +1,171 @@
+{
+  "aggregate": {
+    "counters": {
+      "vusers.created_by_name.Public UI endpoints 500 VUs (Vercel)": 500,
+      "vusers.created": 500,
+      "http.requests": 500,
+      "plugins.metrics-by-endpoint./api/ui/transmissao_footer.errors.ECONNRESET": 500,
+      "errors.ECONNRESET": 500,
+      "vusers.failed": 500
+    },
+    "rates": {
+      "http.request_rate": 8
+    },
+    "firstCounterAt": 1760305566394,
+    "lastCounterAt": 1760305626401,
+    "firstMetricAt": 1760305566394,
+    "lastMetricAt": 1760305626401,
+    "period": 1760305620000,
+    "summaries": {},
+    "histograms": {}
+  },
+  "intermediate": [
+    {
+      "counters": {
+        "vusers.created_by_name.Public UI endpoints 500 VUs (Vercel)": 31,
+        "vusers.created": 31,
+        "http.requests": 31,
+        "plugins.metrics-by-endpoint./api/ui/transmissao_footer.errors.ECONNRESET": 30,
+        "errors.ECONNRESET": 30,
+        "vusers.failed": 30
+      },
+      "rates": {
+        "http.request_rate": 9
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1760305566394,
+      "lastCounterAt": 1760305569999,
+      "firstMetricAt": 1760305566394,
+      "lastMetricAt": 1760305569999,
+      "period": "1760305560000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Public UI endpoints 500 VUs (Vercel)": 83,
+        "vusers.created": 83,
+        "http.requests": 83,
+        "plugins.metrics-by-endpoint./api/ui/transmissao_footer.errors.ECONNRESET": 83,
+        "errors.ECONNRESET": 83,
+        "vusers.failed": 83
+      },
+      "rates": {
+        "http.request_rate": 8
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1760305570113,
+      "lastCounterAt": 1760305579959,
+      "firstMetricAt": 1760305570113,
+      "lastMetricAt": 1760305579959,
+      "period": "1760305570000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Public UI endpoints 500 VUs (Vercel)": 83,
+        "vusers.created": 83,
+        "http.requests": 83,
+        "plugins.metrics-by-endpoint./api/ui/transmissao_footer.errors.ECONNRESET": 83,
+        "errors.ECONNRESET": 83,
+        "vusers.failed": 83
+      },
+      "rates": {
+        "http.request_rate": 8
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1760305580073,
+      "lastCounterAt": 1760305589915,
+      "firstMetricAt": 1760305580073,
+      "lastMetricAt": 1760305589915,
+      "period": "1760305580000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Public UI endpoints 500 VUs (Vercel)": 84,
+        "vusers.created": 84,
+        "http.requests": 84,
+        "plugins.metrics-by-endpoint./api/ui/transmissao_footer.errors.ECONNRESET": 84,
+        "errors.ECONNRESET": 84,
+        "vusers.failed": 84
+      },
+      "rates": {
+        "http.request_rate": 8
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1760305590033,
+      "lastCounterAt": 1760305599999,
+      "firstMetricAt": 1760305590033,
+      "lastMetricAt": 1760305599999,
+      "period": "1760305590000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Public UI endpoints 500 VUs (Vercel)": 83,
+        "vusers.created": 83,
+        "http.requests": 83,
+        "plugins.metrics-by-endpoint./api/ui/transmissao_footer.errors.ECONNRESET": 83,
+        "errors.ECONNRESET": 83,
+        "vusers.failed": 83
+      },
+      "rates": {
+        "http.request_rate": 8
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1760305600113,
+      "lastCounterAt": 1760305609960,
+      "firstMetricAt": 1760305600113,
+      "lastMetricAt": 1760305609960,
+      "period": "1760305600000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Public UI endpoints 500 VUs (Vercel)": 83,
+        "vusers.created": 83,
+        "http.requests": 83,
+        "plugins.metrics-by-endpoint./api/ui/transmissao_footer.errors.ECONNRESET": 83,
+        "errors.ECONNRESET": 83,
+        "vusers.failed": 83
+      },
+      "rates": {
+        "http.request_rate": 8
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1760305610073,
+      "lastCounterAt": 1760305619919,
+      "firstMetricAt": 1760305610073,
+      "lastMetricAt": 1760305619919,
+      "period": "1760305610000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Public UI endpoints 500 VUs (Vercel)": 53,
+        "vusers.created": 53,
+        "http.requests": 53,
+        "plugins.metrics-by-endpoint./api/ui/transmissao_footer.errors.ECONNRESET": 54,
+        "errors.ECONNRESET": 54,
+        "vusers.failed": 54
+      },
+      "rates": {
+        "http.request_rate": 8
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1760305620033,
+      "lastCounterAt": 1760305626401,
+      "firstMetricAt": 1760305620033,
+      "lastMetricAt": 1760305626401,
+      "period": "1760305620000",
+      "summaries": {},
+      "histograms": {}
+    }
+  ]
+}

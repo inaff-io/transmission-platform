@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClientFromHeaders } from '@/lib/supabase/middleware';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyToken } from '@/lib/jwt-server';
 
@@ -45,7 +46,7 @@ export async function GET(
   }
 
   try {
-  const supabase = createAdminClient();
+    const supabase = createClientFromHeaders(_req.headers);
     const { data, error } = await supabase
       .from('ui_blocks')
       .select('key, html, updated_at')

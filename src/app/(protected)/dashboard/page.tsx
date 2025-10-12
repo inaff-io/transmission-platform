@@ -82,8 +82,8 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-100">
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl font-semibold">Plataforma de Transmissão</h1>
+          <div className="flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
+            <h1 className="text-xl font-semibold text-center sm:text-left">Plataforma de Transmissão INAFF</h1>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">Olá, {user?.nome}</span>
               <button

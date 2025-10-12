@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClientFromHeaders } from '@/lib/supabase/middleware';
 
 export async function GET() {
   try {
-    const supabase = createAdminClient();
+    const supabase = createClientFromHeaders(new Headers());
     const { data, error } = await supabase
       .from('links')
       .select('*')

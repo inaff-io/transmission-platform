@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClientFromHeaders } from '@/lib/supabase/middleware';
 
 // Legacy endpoint kept for backward compatibility. It now returns the same
 // JSON shape as /api/ui/[block] with key/html/updated_at, reading from ui_blocks
@@ -22,7 +22,7 @@ function rewriteRelativeUrls(html: string): string {
 
 export async function GET() {
   try {
-    const supabase = createAdminClient();
+    const supabase = createClientFromHeaders(new Headers());
     const { data, error } = await supabase
       .from('ui_blocks')
       .select('key, html, updated_at')

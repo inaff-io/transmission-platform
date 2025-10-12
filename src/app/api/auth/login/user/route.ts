@@ -2,9 +2,21 @@ import { NextResponse } from 'next/server';
 import { performLogin } from '@/lib/auth/login';
 import { registerLogin } from '@/lib/auth/loginRegister';
 import { logger } from '@/lib/utils/logger';
+import { rateLimit, buildRateLimitHeaders } from '@/lib/utils/rateLimit';
 
 export async function POST(request: Request) {
   try {
+    const headers = new Headers(request.headers);
+    const ip = headers.get('x-forwarded-for')?.split(',')[0].trim() || headers.get('x-real-ip') || 'unknown';
+    const key = `login-user:${ip}`;
+    const { allowed, info } = rateLimit(key, 5, 60_000);
+    if (!allowed) {
+      const resp = NextResponse.json({ error: 'Muitas tentativas de login. Aguarde e tente novamente.' }, { status: 429 });
+      const rlHeaders = buildRateLimitHeaders(info);
+      Object.entries(rlHeaders).forEach(([k, v]) => resp.headers.set(k, v));
+      return resp;
+    }
+
     const data = await request.json();
     const { email, cpf } = data;
 
