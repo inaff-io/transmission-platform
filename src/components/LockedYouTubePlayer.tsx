@@ -7,6 +7,7 @@ type YTPlayer = any
 export interface LockedYouTubePlayerProps {
   videoUrlOrId: string
   className?: string
+  onRequireAudioActivation?: () => void
 }
 
 // Extracts a YouTube video ID from common URL formats or returns the input if it looks like an ID
@@ -94,7 +95,7 @@ function loadYouTubeAPI(): Promise<void> {
   return w.__ytApiPromise
 }
 
-export default function LockedYouTubePlayer({ videoUrlOrId, className }: LockedYouTubePlayerProps) {
+export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequireAudioActivation }: LockedYouTubePlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const playerRef = useRef<YTPlayer | null>(null)
   const [ready, setReady] = useState(false)
@@ -106,6 +107,20 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className }: LockedY
   // Discreet volume UI state
   const [showVolPanel, setShowVolPanel] = useState(false)
   const [lastNonZeroVol, setLastNonZeroVol] = useState(50)
+  const interactedRef = useRef(false)
+  const YT_STATE_PLAYING = 1
+
+  const ensureIframeAttributes = () => {
+    const iframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null
+    if (!iframe) return
+    try {
+      iframe.setAttribute('allow', 'autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share')
+      iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
+      // playsinline attributes help iOS Safari avoid fullscreen
+      iframe.setAttribute('playsinline', '')
+      iframe.setAttribute('webkit-playsinline', '')
+    } catch {}
+  }
 
   const clearFade = () => {
     if (fadeTimerRef.current) {
@@ -150,6 +165,19 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className }: LockedY
     setVideoId(getYouTubeId(videoUrlOrId))
   }, [videoUrlOrId])
 
+  // Rastreia a primeira interação do usuário para permitir restaurar o volume após autoplay
+  useEffect(() => {
+    const handler = () => { interactedRef.current = true }
+    window.addEventListener('click', handler, { capture: true, once: true })
+    window.addEventListener('touchstart', handler, { capture: true, once: true })
+    window.addEventListener('keydown', handler, { capture: true, once: true })
+    return () => {
+      window.removeEventListener('click', handler)
+      window.removeEventListener('touchstart', handler)
+      window.removeEventListener('keydown', handler)
+    }
+  }, [])
+
   // Initialize player when API and container are ready
   useEffect(() => {
     let destroyed = false
@@ -172,23 +200,17 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className }: LockedY
           rel: 0,
           fs: 0,
           playsinline: 1,
-          // Autoplay habilitado (silencioso por padrão para compatibilidade)
+          'webkit-playsinline': 1,
           autoplay: 1,
-          // Prevent related videos and info overlays
           iv_load_policy: 3,
-          // origin helps some browsers/security contexts
           origin: typeof window !== 'undefined' ? window.location.origin : undefined,
         },
         events: {
           onReady: () => {
             if (destroyed) return
             try {
-              // inicia reprodução com fade-in de volume para ser discreto
-              playerRef.current?.setVolume(0)
-              playerRef.current?.mute()
-              playerRef.current?.playVideo()
-              setIsPlaying(true)
-              fadeVolume(volume, 800)
+              ensureIframeAttributes()
+              attemptAudioAutoplay()
             } catch {}
             setReady(true)
           },
@@ -197,6 +219,7 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className }: LockedY
           },
         },
       })
+      window.setTimeout(ensureIframeAttributes, 50)
     })
 
     return () => {
@@ -212,13 +235,14 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className }: LockedY
   useEffect(() => {
     if (playerRef.current && videoId) {
       try {
+        let prevVol = 0
+        try {
+          prevVol = typeof playerRef.current.getVolume === 'function' ? playerRef.current.getVolume() : (volume ?? 50)
+        } catch {}
+
         playerRef.current.loadVideoById(videoId)
-        playerRef.current.setVolume(0)
-        playerRef.current.mute()
-        playerRef.current.playVideo()
-        setIsPlaying(true)
-        // fade-in para tornar o volume discreto na troca de vídeo
-        fadeVolume(volume, 800)
+        ensureIframeAttributes()
+        attemptAudioAutoplay(prevVol)
       } catch {}
     }
   }, [videoId])

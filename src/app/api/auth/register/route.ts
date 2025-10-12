@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { randomUUID } from 'crypto';
+import { rateLimit, buildRateLimitHeaders } from '@/lib/utils/rateLimit';
 
 type Body = {
 	nome?: string;
@@ -11,6 +12,17 @@ type Body = {
 
 export async function POST(req: Request) {
 	try {
+		const headers = new Headers(req.headers);
+		const ip = headers.get('x-forwarded-for') || headers.get('x-real-ip') || 'unknown';
+		const key = `register:${ip}`;
+		const { allowed, info } = rateLimit(key, 3, 300_000);
+		if (!allowed) {
+			const resp = NextResponse.json({ error: 'Muitas tentativas de cadastro. Tente novamente mais tarde.' }, { status: 429 });
+			const rlHeaders = buildRateLimitHeaders(info);
+			Object.entries(rlHeaders).forEach(([k, v]) => resp.headers.set(k, v));
+			return resp;
+		}
+
 		const body = (await req.json()) as Body;
 		const nome = (body.nome || '').trim();
 		const email = (body.email || '').trim().toLowerCase();

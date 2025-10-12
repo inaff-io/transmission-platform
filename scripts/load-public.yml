@@ -1,0 +1,14 @@
+config:
+  target: "https://transmission-platform.vercel.app"
+  http:
+    timeout: 10
+    extendedMetrics: true
+  phases:
+    - name: "smoke-1"
+      duration: 10
+      arrivalCount: 1
+scenarios:
+  - name: "Links active (Vercel)"
+    flow:
+      - get:
+          url: "/api/links/active"

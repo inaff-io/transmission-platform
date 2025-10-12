@@ -2,6 +2,15 @@
   "framework": "nextjs",
   "headers": [
     {
+      "source": "/api/ui/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=30, s-maxage=60, stale-while-revalidate=120"
+        }
+      ]
+    },
+    {
       "source": "/api/(.*)",
       "headers": [
         {

@@ -1,0 +1,25 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 120
+      arrivalRate: 1
+      maxVusers: 3
+  defaults:
+    headers:
+      accept: application/json
+    http:
+      cookieJar: true
+      timeout: 10
+scenarios:
+  - name: "Login admin e consulta protegida"
+    flow:
+      - post:
+          url: "/api/auth/login/admin"
+          json:
+            email: "pecosta26@gmail.com"
+      - get:
+          url: "/api/admin/online"
+      - loop:
+          - get:
+              url: "/api/admin/online"
+        count: 20

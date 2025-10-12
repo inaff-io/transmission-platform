@@ -7,8 +7,8 @@ export function LogoSection() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   return (
-    <div className="w-full text-center">
-      <div className="relative mx-auto w-full h-[200px] sm:h-[280px] md:h-[360px] lg:h-[440px] xl:h-[520px]">
+    <div className="w-full h-full text-center">
+      <div className="relative mx-auto w-full h-full">
         {!isLoaded && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -17,11 +17,11 @@ export function LogoSection() {
         <Image
           src="/logo-evento.png"
           alt="Logo do Evento"
-          className={`object-contain transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`object-contain w-full h-full transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
           fill
           priority
           quality={100}
-          sizes="(max-width: 640px) 100vw, (max-width: 768px) 100vw, (max-width: 1024px) 100vw, (max-width: 1280px) 100vw, 100vw"
+          sizes="100vw"
           onLoad={() => setIsLoaded(true)}
         />
       </div>

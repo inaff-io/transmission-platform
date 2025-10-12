@@ -31,7 +31,21 @@ export function VimeoPlayer({ videoId, className = '' }: VimeoPlayerProps) {
           id: videoId,
           responsive: true,
           controls: true,
+          autoplay: true,
+          muted: true,
+          playsinline: true,
         });
+
+        // Tenta iniciar a reprodução (alguns navegadores exigem muted)
+        try {
+          await player.play();
+        } catch (err) {
+          // Se falhar, mantém muted e tenta novamente
+          try {
+            await player.setVolume(0);
+            await player.play();
+          } catch {}
+        }
 
         // Configura os eventos
         player.on('play', () => {
@@ -54,15 +68,18 @@ export function VimeoPlayer({ videoId, className = '' }: VimeoPlayerProps) {
         playerRef.current = player;
       } catch (error) {
         console.error('Erro ao carregar Vimeo Player:', error);
-        // Fallback para iframe
+        // Fallback para iframe com autoplay e muted
         if (containerRef.current) {
           containerRef.current.innerHTML = `
             <iframe 
-              src="https://player.vimeo.com/video/${videoId}" 
+              src="https://player.vimeo.com/video/${videoId}?autoplay=1&muted=1&playsinline=1" 
               width="100%" 
               height="100%" 
               frameborder="0" 
-              allow="autoplay; fullscreen; picture-in-picture">
+              allow="autoplay; picture-in-picture; web-share"
+              referrerpolicy="strict-origin-when-cross-origin"
+              playsinline
+              title="Vimeo player">
             </iframe>
           `;
         }
