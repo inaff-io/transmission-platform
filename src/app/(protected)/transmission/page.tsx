@@ -12,6 +12,7 @@ import { useCleanRscParams } from '@/hooks/useCleanRscParams';
 
 import { VimeoPlayer } from '@/components/VimeoPlayer';
 import LockedYouTubePlayer from '@/components/LockedYouTubePlayer';
+import Banner from '@/components/Banner';
 
 export default function TransmissionPage() {
   const router = useRouter();
@@ -269,13 +270,18 @@ export default function TransmissionPage() {
         </header>
       )}
 
-      {/* Header com Logo do Evento - Responsivo */}
-      <div id="topo" className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-md h-[140px] sm:h-[200px] md:h-[260px] lg:h-[320px] xl:h-[360px] border-b-2 border-gray-200">
-        <div className="container mx-auto px-2 sm:px-4 md:px-6 h-full">
-          <div className="flex flex-col items-center justify-center h-full">
-            <LogoSection />
-          </div>
-        </div>
+      {/* Header com Logo do Evento removido conforme solicitado */}
+
+      {/* Banner do evento - espaçamento em notebook e desktop */}
+      <div className="md:-mt-2 lg:-mt-6">
+        <Banner 
+          imageUrl="/logo-evento.png"
+          title=""
+          subtitle=""
+          ctaHref={undefined}
+          ctaLabel={undefined}
+          overlayOpacityClass="bg-black/0"
+        />
       </div>
 
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex-1 w-full">
