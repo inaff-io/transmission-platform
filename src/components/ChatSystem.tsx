@@ -225,6 +225,7 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
           </div>
         ))}
 -        <div ref={messagesEndRef} />
+-        {/* Marcador de fim removido: usar scroll no container */}
 +        {/* Marcador de fim removido: usar scroll no container */}
         </div>
       </div>
