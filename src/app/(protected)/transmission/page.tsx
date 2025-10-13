@@ -273,7 +273,7 @@ export default function TransmissionPage() {
       {/* Header com Logo do Evento removido conforme solicitado */}
 
       {/* Banner do evento - espaçamento em notebook e desktop */}
-      <div className="md:-mt-2 lg:-mt-6 xl:-mt-4">
+      <div className="md:-mt-2 lg:-mt-6 xl:-mt-2">
         <Banner 
           imageUrl="/logo-evento.png"
           title=""
