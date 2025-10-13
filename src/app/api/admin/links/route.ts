@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { getSession } from '@/lib/supabase/session';
 import pg from 'pg';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Função para criar um cliente PostgreSQL
 function createPgClient() {
   return new pg.Client({
@@ -123,7 +126,11 @@ export async function GET(request: NextRequest) {
       atualizado_em: link.atualizado_em
     }));
 
-    return NextResponse.json(links);
+    return NextResponse.json(links, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate'
+      }
+    });
   } catch (error) {
     console.error('[Admin Links GET] Erro ao buscar links:', error);
     return NextResponse.json(

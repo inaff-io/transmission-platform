@@ -29,14 +29,17 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
   const [isConnected, setIsConnected] = useState(false);
   // novo: carregamento
   const [loading, setLoading] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (smooth = false) => {
+    const el = messagesContainerRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom(true);
   }, [messages]);
 
   useEffect(() => {
@@ -101,7 +104,7 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
       };
       setMessages(prev => [...prev, message]);
       setNewMessage('');
-      scrollToBottom();
+      scrollToBottom(true);
     } catch {
       // fallback: adiciona localmente
       const message: ChatMessage = {
@@ -112,7 +115,7 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
       };
       setMessages(prev => [...prev, message]);
       setNewMessage('');
-      scrollToBottom();
+      scrollToBottom(true);
     }
   };
 
@@ -176,7 +179,7 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
       </div>
 
       {/* Área de Mensagens */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading && (
           <div className="text-xs text-gray-500">Carregando mensagens...</div>
         )}
@@ -221,7 +224,9 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
             </div>
           </div>
         ))}
-        <div ref={messagesEndRef} />
+-        <div ref={messagesEndRef} />
++        {/* Marcador de fim removido: usar scroll no container */}
+        </div>
       </div>
 
       {/* Input de Mensagem */}
