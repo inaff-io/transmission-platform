@@ -122,6 +122,54 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
     } catch {}
   }
 
+  const attemptAudioAutoplay = (prevVol?: number) => {
+    const player = playerRef.current as any
+    if (!player) return
+
+    let target = typeof prevVol === 'number' && !Number.isNaN(prevVol) ? prevVol : (volume ?? 50)
+    target = Math.max(0, Math.min(100, target))
+
+    try {
+      // Start playback muted to satisfy autoplay policies
+      if (typeof player.setVolume === 'function') player.setVolume(0)
+      player.mute?.()
+      player.playVideo?.()
+      setIsPlaying(true)
+    } catch {}
+
+    // Ensure iframe attributes are set correctly
+    try { ensureIframeAttributes() } catch {}
+
+    // If user has already interacted, restore volume smoothly
+    if (interactedRef.current) {
+      setVolume(target)
+      fadeVolume(target, 800)
+      try { player.unMute?.() } catch {}
+      return
+    }
+
+    // No interaction yet: keep muted, briefly show volume panel, notify UI
+    try { player.mute?.() } catch {}
+    setShowVolPanel(true)
+    window.setTimeout(() => setShowVolPanel(false), 1500)
+    try { onRequireAudioActivation?.() } catch {}
+
+    // Observe for a few seconds if the user interacts, then restore audio
+    const startedAt = Date.now()
+    const checkInteraction = () => {
+      if (interactedRef.current) {
+        setVolume(target)
+        fadeVolume(target, 800)
+        try { player.unMute?.() } catch {}
+        return
+      }
+      if (Date.now() - startedAt < 4000) {
+        window.setTimeout(checkInteraction, 300)
+      }
+    }
+    window.setTimeout(checkInteraction, 300)
+  }
+
   const clearFade = () => {
     if (fadeTimerRef.current) {
       clearInterval(fadeTimerRef.current)
