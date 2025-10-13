@@ -224,11 +224,8 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
             </div>
           </div>
         ))}
--        <div ref={messagesEndRef} />
--        {/* Marcador de fim removido: usar scroll no container */}
-+        {/* Marcador de fim removido: usar scroll no container */}
+        {/* Marcador de fim removido: usar scroll no container */}
         </div>
-      </div>
 
       {/* Input de Mensagem */}
       <div className="p-4 border-t border-gray-200">
