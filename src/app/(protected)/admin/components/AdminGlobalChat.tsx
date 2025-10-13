@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useEffect, useState } from 'react'
 import ChatSystem from '@/components/ChatSystem'
@@ -13,7 +13,8 @@ interface MeResponse {
 export default function AdminGlobalChat() {
   const [me, setMe] = useState<MeResponse | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isOpen, setIsOpen] = useState(true)
+  // Abre somente quando administrador clicar
+  const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
     const loadMe = async () => {
