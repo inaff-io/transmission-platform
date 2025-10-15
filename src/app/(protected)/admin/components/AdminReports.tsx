@@ -68,17 +68,32 @@ export default function AdminReports() {
       setStats(reportStats);
 
       // Formata dados para o Excel
-      const reportData = logins.map((login) => ({
-        'Nome': login.usuarios?.nome || '-',
-        'E-mail': login.usuarios?.email || '-',
-        'CPF': login.usuarios?.cpf || '-',
-        'Categoria': login.usuarios?.categoria || '-',
-        'Data/Hora Login': new Date(login.login_em).toLocaleString(),
-        'Data/Hora Logout': login.logout_em ? new Date(login.logout_em).toLocaleString() : '-',
-        'Tempo Logado (minutos)': login.tempo_logado ? Math.round(login.tempo_logado / 60) : 0,
-        'IP': login.ip || '-',
-        'Navegador': login.navegador || '-'
-      }));
+      const reportData = logins.map((login) => {
+        const loginDate = new Date(login.login_em);
+        const logoutDate = login.logout_em ? new Date(login.logout_em) : null;
+        // Cálculo de minutos com ajuste para evitar 0 em sessões encerradas curtas
+        const minutos = (() => {
+          if (logoutDate) {
+            const diffSec = Math.max(0, Math.round((logoutDate.getTime() - loginDate.getTime()) / 1000));
+            return diffSec > 0 ? Math.max(1, Math.ceil(diffSec / 60)) : 0;
+          }
+          // Sessão ativa: minutos decorridos desde o login
+          const diffSec = Math.max(0, Math.round((Date.now() - loginDate.getTime()) / 1000));
+          return Math.floor(diffSec / 60);
+        })();
+
+        return {
+          'Nome': login.usuarios?.nome || '-',
+          'E-mail': login.usuarios?.email || '-',
+          'CPF': login.usuarios?.cpf || '-',
+          'Categoria': login.usuarios?.categoria || '-',
+          'Data/Hora Login': new Date(login.login_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+          'Data/Hora Logout': login.logout_em ? new Date(login.logout_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '-',
+          'Tempo Logado (minutos)': minutos,
+          'IP': login.ip || '-',
+          'Navegador': login.navegador || '-'
+        };
+      });
 
       // Cria planilha Excel
       const ws = XLSX.utils.json_to_sheet(reportData);

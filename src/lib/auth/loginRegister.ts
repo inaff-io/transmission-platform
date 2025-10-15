@@ -47,37 +47,90 @@ export async function registerLogin(userId: string, ip: string, userAgent: strin
     }
 
     const supabase = createAdminClient();
-    
-    await withRetry(async () => {
-      logger.debug({
-        message: 'Tentando inserir registro de login',
+
+    // Evitar duplicatas: se já existe uma sessão ativa (logout_em = null),
+    // não cria um novo registro; apenas atualiza IP/navegador se necessário.
+    const { data: existingActiveRows, error: findActiveError } = await supabase
+      .from('logins')
+      .select('id, login_em, ip, navegador, logout_em')
+      .eq('usuario_id', userId)
+      .is('logout_em', null)
+      .order('login_em', { ascending: false })
+      .limit(1);
+
+    if (findActiveError) {
+      logger.warn({
+        message: 'Falha ao verificar sessão ativa, prosseguindo com inserção',
+        error: findActiveError,
         userId,
-        context: { operation: 'registerLogin', data: loginData }
+        context: { operation: 'registerLogin', step: 'checkActive' }
       });
+    }
 
-      const { error } = await supabase.from('logins').insert(loginData);
-      if (error) {
-        const loginError = {
-          code: error.code,
-          message: 'Erro ao registrar login no banco de dados',
-          details: error
-        } as LoginError;
+    const activeLogin = Array.isArray(existingActiveRows) && existingActiveRows.length > 0 ? existingActiveRows[0] : null;
 
-        logger.error({
-          message: 'Falha ao inserir registro de login',
-          error: loginError,
+    if (activeLogin) {
+      // Atualiza dados de contexto da sessão ativa se houver mudanças relevantes
+      const needsUpdate = (activeLogin.ip !== loginData.ip) || (activeLogin.navegador !== loginData.navegador);
+      if (needsUpdate) {
+        const { error: updateError } = await supabase
+          .from('logins')
+          .update({ ip: loginData.ip, navegador: loginData.navegador })
+          .eq('id', activeLogin.id);
+
+        if (updateError) {
+          logger.warn({
+            message: 'Falha ao atualizar sessão ativa com IP/Navegador',
+            error: updateError,
+            userId,
+            context: { operation: 'registerLogin', step: 'updateActive' }
+          });
+        } else {
+          logger.info({
+            message: 'Sessão ativa encontrada; IP/Navegador atualizados',
+            userId,
+            context: { operation: 'registerLogin', step: 'updateActive', loginId: activeLogin.id }
+          });
+        }
+      } else {
+        logger.info({
+          message: 'Sessão ativa encontrada; nenhum novo registro criado',
           userId,
-          context: { operation: 'registerLogin', attempt: 'insert' }
+          context: { operation: 'registerLogin', step: 'skipInsert', loginId: activeLogin.id }
+        });
+      }
+    } else {
+      await withRetry(async () => {
+        logger.debug({
+          message: 'Tentando inserir registro de login',
+          userId,
+          context: { operation: 'registerLogin', data: loginData }
         });
 
-        throw loginError;
-      }
-    }, {
-      maxAttempts: 3,
-      initialDelay: 1000,
-      maxDelay: 5000,
-      retryableErrors: ['PGRST116', '23505', '40001', '40P01', 'PGRST301']
-    });
+        const { error } = await supabase.from('logins').insert(loginData);
+        if (error) {
+          const loginError = {
+            code: error.code,
+            message: 'Erro ao registrar login no banco de dados',
+            details: error
+          } as LoginError;
+
+          logger.error({
+            message: 'Falha ao inserir registro de login',
+            error: loginError,
+            userId,
+            context: { operation: 'registerLogin', attempt: 'insert' }
+          });
+
+          throw loginError;
+        }
+      }, {
+        maxAttempts: 3,
+        initialDelay: 1000,
+        maxDelay: 5000,
+        retryableErrors: ['PGRST116', '23505', '40001', '40P01', 'PGRST301']
+      });
+    }
 
     logger.info({
       message: 'Login registrado com sucesso',

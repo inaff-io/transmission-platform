@@ -12,7 +12,17 @@ type ExportType = 'acessos' | 'sessoes' | 'usuarios' | 'logins';
 
 const formatarData = (data: Date | string | null) => {
   if (!data) return '-';
-  return format(new Date(data), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR });
+  const dt = new Date(data);
+  // Formata em timezone de São Paulo
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  }).format(dt);
 };
 
 const formatarDuracao = (segundos: number | null) => {
