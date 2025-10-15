@@ -39,7 +39,7 @@ export async function getHistoricoAcessos(dataInicio?: string, dataFim?: string)
     const params: any[] = [];
     
     if (dataInicio && dataFim) {
-      query += ` AND ha.created_at BETWEEN $1 AND $2`;
+      query += ` AND (ha.created_at AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN $1::date AND $2::date`;
       params.push(dataInicio, dataFim);
     }
     
@@ -113,7 +113,7 @@ export async function getUsuarios(dataInicio?: string, dataFim?: string) {
     const params: any[] = [];
     
     if (dataInicio && dataFim) {
-      query += ` AND created_at BETWEEN $1 AND $2`;
+      query += ` AND (created_at AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN $1::date AND $2::date`;
       params.push(dataInicio, dataFim);
     }
     
@@ -150,7 +150,7 @@ export async function getLogins(dataInicio?: string, dataFim?: string) {
     const params: any[] = [];
     
     if (dataInicio && dataFim) {
-      query += ` AND l.login_em BETWEEN $1 AND $2`;
+      query += ` AND (l.login_em AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN $1::date AND $2::date`;
       params.push(dataInicio, dataFim);
     }
     
