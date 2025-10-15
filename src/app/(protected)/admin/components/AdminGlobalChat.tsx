@@ -13,8 +13,8 @@ interface MeResponse {
 export default function AdminGlobalChat() {
   const [me, setMe] = useState<MeResponse | null>(null)
   const [loading, setLoading] = useState(true)
-  // Abre somente quando administrador clicar
-  const [isOpen, setIsOpen] = useState(false)
+  // Abre por padrão para administradores visualizarem imediatamente
+  const [isOpen, setIsOpen] = useState(true)
 
   useEffect(() => {
     const loadMe = async () => {
@@ -53,6 +53,7 @@ export default function AdminGlobalChat() {
       isVisible={isOpen}
       onToggle={() => setIsOpen(prev => !prev)}
       userName={userName}
+      currentUserId={me?.id}
       canModerate={canModerate}
       variant="panel"
     />

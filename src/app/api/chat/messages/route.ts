@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/jwt-server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
+import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -82,9 +83,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    const newId = randomUUID();
     const { data, error } = await supabase
       .from('chat')
-      .insert({ usuario_id: payload.userId, mensagem: message })
+      .insert({ id: newId, usuario_id: payload.userId, mensagem: message, updated_at: new Date().toISOString() })
       .select('id, mensagem, created_at, usuario_id')
       .single();
 

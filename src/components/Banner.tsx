@@ -8,6 +8,8 @@ type BannerProps = {
   ctaHref?: string;
   overlayOpacityClass?: string; // e.g. "bg-black/60"
   fullBleed?: boolean; // força ocupar largura total do viewport mesmo dentro de containers
+  heightClass?: string; // classes de altura responsiva
+  backgroundClass?: string; // classes de fundo/padding/borda do container
 };
 
 export default function Banner({
@@ -18,14 +20,17 @@ export default function Banner({
   ctaHref = undefined,
   overlayOpacityClass = 'bg-black/50',
   fullBleed = true,
+  heightClass = 'h-[200px] sm:h-[280px] md:h-[350px] lg:h-[420px] xl:h-[480px]',
+  backgroundClass = '',
 }: BannerProps) {
   const sectionClass = fullBleed
     // Full bleed: ocupa 100vw e centraliza no viewport, mesmo dentro de containers
-    ? 'relative w-screen left-1/2 -translate-x-1/2 h-[300px] md:h-[450px] lg:h-[550px]'
-    : 'relative w-full h-[300px] md:h-[450px] lg:h-[550px]';
+    ? `relative w-screen left-1/2 -translate-x-1/2 ${heightClass}`
+    : `relative w-full ${heightClass}`;
+  const sectionClassName = `${sectionClass} ${backgroundClass}`.trim();
 
   return (
-    <section className={sectionClass}>
+    <section className={sectionClassName}>
       {/* Imagem de fundo */}
       <Image
         src={imageUrl}

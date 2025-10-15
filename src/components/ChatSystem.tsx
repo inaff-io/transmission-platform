@@ -20,10 +20,16 @@ interface ChatSystemProps {
   // novo: modo moderador
   canModerate?: boolean;
   // novo: variante visual
-  variant?: 'floating' | 'panel';
+  variant?: 'floating' | 'panel' | 'embedded';
+  // novo: mostrar/esconder cabeçalho
+  showHeader?: boolean;
+  // novo: sobrescrever classe do container
+  containerClass?: string;
+  // novo: identificador do usuário atual para melhor detecção de autoria
+  currentUserId?: string;
 }
 
-export default function ChatSystem({ isVisible, onToggle, userName, canModerate = false, variant = 'floating' }: ChatSystemProps) {
+export default function ChatSystem({ isVisible, onToggle, userName, canModerate = false, variant = 'floating', showHeader = true, containerClass, currentUserId }: ChatSystemProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -46,7 +52,7 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
     // Substituir simulação por carga da API
     const loadMessages = async () => {
       try {
-        const res = await fetch('/api/chat/messages', { cache: 'no-store', credentials: 'include' });
+        const res = await fetch('/api/chat/messages', { cache: 'no-store', credentials: 'include', keepalive: true });
         if (!res.ok) throw new Error('Falha ao carregar mensagens');
         const data = await res.json();
         const msgs = (data.messages || []).map((m: any) => ({
@@ -89,16 +95,17 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        keepalive: true,
         body: JSON.stringify({ message: newMessage.trim() })
       });
       if (!res.ok) throw new Error('Falha ao enviar mensagem');
       const data = await res.json();
-      const m = data.message;
+      const m = data.message || {};
       const message: ChatMessage = {
-        id: m.id,
+        id: m.id || Date.now().toString(),
         user: m.userName || userName,
-        message: m.message,
-        timestamp: new Date(m.createdAt),
+        message: m.message || newMessage.trim(),
+        timestamp: m.createdAt ? new Date(m.createdAt) : new Date(),
         userId: m.userId,
         categoria: m.categoria,
       };
@@ -128,7 +135,17 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
     } catch {}
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleBlockUser = async (userId?: string) => {
+    if (!canModerate || !userId) return;
+    try {
+      const res = await fetch(`/api/chat/block/${userId}`, { method: 'POST', credentials: 'include' });
+      if (!res.ok) throw new Error('Falha ao bloquear usuário');
+      // Remove mensagens do usuário bloqueado da visualização atual
+      setMessages(prev => prev.filter(m => m.userId !== userId));
+    } catch {}
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -152,53 +169,58 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
     return null;
   }
 
-  const containerClass = variant === 'floating'
-    ? 'fixed bottom-6 right-6 w-80 h-96 bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col z-50'
-    : 'w-full h-[500px] bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col';
+  const defaultContainerClass = variant === 'floating'
+    ? 'fixed bottom-6 right-6 w-80 h-96 bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col z-50'
+    : variant === 'embedded'
+    ? 'w-full h-full bg-transparent rounded-none shadow-none border-none flex flex-col'
+    : 'w-full h-[500px] bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col';
+  const rootContainerClass = containerClass || defaultContainerClass;
 
   return (
-    <div className={containerClass}>
+    <div className={rootContainerClass}>
       {/* Header do Chat */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
-        <div className="flex items-center gap-2">
-          <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <h3 className="font-semibold text-gray-900">Bate Papo</h3>
-          <span className="text-xs text-gray-500">({messages.filter(m => !m.isSystem).length} mensagens)</span>
+      {showHeader && (
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-t-lg">
+          <div className="flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Bate Papo</h3>
+            <span className="text-xs text-gray-500 dark:text-gray-400">({messages.filter(m => !m.isSystem).length} mensagens)</span>
+          </div>
+          {variant === 'floating' && (
+            <button
+              onClick={onToggle}
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-200"
+              title="Fechar chat"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
-        {variant === 'floating' && (
-          <button
-            onClick={onToggle}
-            className="text-gray-500 hover:text-gray-700 transition-colors duration-200"
-            title="Fechar chat"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Área de Mensagens */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading && (
-          <div className="text-xs text-gray-500">Carregando mensagens...</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">Carregando mensagens...</div>
         )}
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex flex-col ${message.user === userName ? 'items-end' : 'items-start'}`}
+            className={`flex flex-col ${message.userId && currentUserId ? (message.userId === currentUserId ? 'items-end' : 'items-start') : (message.user === userName ? 'items-end' : 'items-start')}`}
           >
             <div
               className={`max-w-[80%] rounded-lg px-3 py-2 ${
                 message.isSystem
-                  ? 'bg-yellow-100 text-yellow-800 text-center w-full'
+                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-200 dark:text-yellow-900 text-center w-full'
                   : message.user === userName
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-900'
+                  : 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100'
               }`}
             >
               {!message.isSystem && message.user !== userName && (
-                <div className="text-xs font-semibold mb-1 text-gray-600 flex items-center gap-2">
+                <div className="text-xs font-semibold mb-1 text-gray-600 dark:text-gray-300 flex items-center gap-2">
                   {message.user}
                   {message.categoria === 'admin' && (
                     <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-red-100 text-red-700 rounded">
@@ -210,16 +232,27 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
               )}
               <div className="text-sm">{message.message}</div>
             </div>
-            <div className="text-xs text-gray-500 mt-1 flex items-center gap-3">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-3">
               {message.timestamp.toLocaleTimeString()}
               {canModerate && !message.isSystem && (
-                <button
-                  onClick={() => handleDelete(message.id)}
-                  className="text-xs text-red-600 hover:text-red-800"
-                  title="Remover mensagem"
-                >
-                  remover
-                </button>
+                <>
+                  {message.userId && (
+                    <button
+                      onClick={() => handleBlockUser(message.userId)}
+                      className="text-xs text-orange-600 hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-300"
+                      title="Bloquear usuário"
+                    >
+                      bloquear
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(message.id)}
+                    className="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                    title="Remover mensagem"
+                  >
+                    remover
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -228,28 +261,28 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
         </div>
 
       {/* Input de Mensagem */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
         <div className="flex gap-2">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="Digite sua mensagem..."
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             maxLength={500}
           />
           <button
             onClick={sendMessage}
             disabled={!newMessage.trim()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors duration-200"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
           </button>
         </div>
-        <div className="text-xs text-gray-500 mt-1">
+        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
           {newMessage.length}/500 caracteres
         </div>
       </div>

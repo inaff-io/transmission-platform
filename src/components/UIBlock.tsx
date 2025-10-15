@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 type Props = Readonly<{
-  block: 'login_header' | 'login_footer' | 'transmissao_header' | 'transmissao_footer';
+  block: 'login_header' | 'login_footer' | 'transmissao_header' | 'transmissao_footer' | 'help_contact';
   className?: string;
 }>;
 
