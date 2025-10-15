@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-type BlockKey = 'login_header' | 'login_footer' | 'transmissao_header' | 'transmissao_footer';
+type BlockKey = 'login_header' | 'login_footer' | 'transmissao_header' | 'transmissao_footer' | 'help_contact';
 
 const BLOCK_LABEL: Record<BlockKey, string> = {
   login_header: 'Header do Login',
   login_footer: 'Footer do Login',
   transmissao_header: 'Header da Transmissão',
   transmissao_footer: 'Footer da Transmissão',
+  help_contact: 'Contato de Ajuda',
 };
 
 export default function AdminUIBlocks() {
@@ -18,6 +19,7 @@ export default function AdminUIBlocks() {
     login_footer: '',
     transmissao_header: '',
     transmissao_footer: '',
+    help_contact: '',
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

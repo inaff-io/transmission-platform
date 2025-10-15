@@ -213,6 +213,24 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
     setVideoId(getYouTubeId(videoUrlOrId))
   }, [videoUrlOrId])
 
+  // Persistência de volume e restauração ao carregar
+  useEffect(() => {
+    try {
+      const storedVol = Number(localStorage.getItem('yt_volume') ?? '50')
+      const storedLast = Number(localStorage.getItem('yt_last_non_zero') ?? '50')
+      const safeVol = Math.max(0, Math.min(100, Number.isNaN(storedVol) ? 50 : storedVol))
+      const safeLast = Math.max(0, Math.min(100, Number.isNaN(storedLast) ? 50 : storedLast))
+      setVolume(safeVol)
+      setLastNonZeroVol(safeLast > 0 ? safeLast : (safeVol > 0 ? safeVol : 50))
+    } catch {}
+  }, [])
+  useEffect(() => {
+    try { localStorage.setItem('yt_volume', String(volume)) } catch {}
+  }, [volume])
+  useEffect(() => {
+    try { localStorage.setItem('yt_last_non_zero', String(lastNonZeroVol)) } catch {}
+  }, [lastNonZeroVol])
+
   // Rastreia a primeira interação do usuário para permitir restaurar o volume após autoplay
   useEffect(() => {
     const handler = () => { interactedRef.current = true }
@@ -321,20 +339,24 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
     } catch {}
   }
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = Math.max(0, Math.min(100, Number(e.target.value)))
+  const updateVolume = (value: number, duration = 400) => {
+    const v = Math.max(0, Math.min(100, Number(value)))
     setVolume(v)
     if (v > 0) setLastNonZeroVol(v)
     try {
       if (isPlaying) {
         // ajuste discreto durante reprodução
-        fadeVolume(v, 400)
+        fadeVolume(v, duration)
       } else {
         // se estiver pausado, apenas prepara o volume desejado mantendo mudo
         playerRef.current?.setVolume(v)
         playerRef.current?.mute()
       }
     } catch {}
+  }
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateVolume(Number(e.target.value))
   }
 
   const handleVolumeToggle = () => {
@@ -369,6 +391,29 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
 
   const handleShowVolPanel = () => setShowVolPanel(true)
   const handleHideVolPanel = () => setShowVolPanel(false)
+
+  // Atalhos de teclado: Espaço (play/pause), M (mute), setas de volume
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase() || ''
+      if (tag === 'input' || tag === 'textarea') return
+      if (e.key === ' ') {
+        e.preventDefault()
+        isPlaying ? handlePause() : handlePlay()
+      } else if (e.key.toLowerCase() === 'm') {
+        e.preventDefault()
+        handleVolumeToggle()
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        updateVolume((volume ?? 0) + 5)
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        updateVolume((volume ?? 0) - 5)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isPlaying, volume])
 
   // SSR-safe placeholder
   if (typeof window === 'undefined') {
@@ -410,7 +455,7 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
       </div>
 
       {/* Barra de controles fora da área protegida (abaixo) */}
-      <div className="mt-2 px-4">
+      <div className="mt-2 sm:mt-3 md:mt-4 px-4 sm:px-6 md:px-8 mx-auto max-w-screen-lg">
         <div className="flex items-center gap-4 rounded-lg bg-black/40 backdrop-blur-sm px-4 py-3">
           {/* Volume à esquerda */}
           <div className="flex items-center gap-2">
@@ -419,6 +464,7 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
               onClick={handleVolumeToggle}
               className="text-white hover:text-blue-300 transition-colors"
               title="Volume"
+              aria-label="Alternar mudo"
             >
               🔊
             </button>
@@ -428,7 +474,7 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
               max={100}
               value={volume}
               onChange={handleVolumeChange}
-              className="w-56 h-2 appearance-none rounded bg-white/30"
+              className="w-44 sm:w-56 md:w-64 h-2 appearance-none rounded bg-white/30"
               style={{ accentColor: '#ffffff' }}
               step={1}
             />
@@ -441,6 +487,8 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
               onClick={handlePlay}
               className="text-white hover:text-green-300 transition-colors"
               title="Play"
+              aria-label="Reproduzir"
+              disabled={!ready}
             >
               ▶️
             </button>
@@ -449,6 +497,8 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
               onClick={handlePause}
               className="text-white hover:text-yellow-300 transition-colors"
               title="Pause"
+              aria-label="Pausar"
+              disabled={!ready}
             >
               ⏸️
             </button>

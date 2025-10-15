@@ -4,10 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import './styles.css';
 import { useRouter } from 'next/navigation';
 import type { Link, Usuario } from '@/types/database';
-import { LogoSection } from '@/components/LogoSection';
+// Removido LogoSection em favor do Banner com logo-evento
 import { clearAuth } from '@/lib/auth';
 import UIBlock from '@/components/UIBlock';
-// import ChatSystem from '@/components/ChatSystem';
+import ChatSystem from '@/components/ChatSystem';
+import ThemeToggle from '@/components/ui/ThemeToggle';
+import HelpButton from '@/components/ui/HelpButton';
 import { useCleanRscParams } from '@/hooks/useCleanRscParams';
 
 import { VimeoPlayer } from '@/components/VimeoPlayer';
@@ -21,6 +23,7 @@ export default function TransmissionPage() {
   const [user, setUser] = useState<Usuario | null>(null);
   const [currentLink, setCurrentLink] = useState<Link | null>(null);
   const [programacaoLink, setProgramacaoLink] = useState<Link | null>(null);
+  const [rightTab, setRightTab] = useState<'programacao' | 'chat'>('chat');
   const [hasManagedHeader, setHasManagedHeader] = useState(false);
   const [headerChecked, setHeaderChecked] = useState(false);
   const [isLive, setIsLive] = useState(false);
@@ -200,7 +203,59 @@ export default function TransmissionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900">
+      <Banner 
+        imageUrl="/logo-evento.png" 
+        overlayOpacityClass="bg-transparent" 
+        title="" 
+        subtitle="" 
+        heightClass="h-[180px] sm:h-[240px] md:h-[300px] lg:h-[360px] xl:h-[420px]"
+        backgroundClass="p-2 sm:p-3 md:p-4 bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-b border-gray-200"
+        fullBleed={false}
+      />
+      <UIBlock block="login_header" className="w-full" />
+
+      {headerChecked && !hasManagedHeader && (
+        <header className="bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-700">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{isLive ? 'AO VIVO' : 'OFFLINE'}</span>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 text-xs">
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Usuário: </span>
+                    <span className="text-gray-900 dark:text-gray-100 font-medium">{user?.nome}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">E-mail: </span>
+                    <span className="text-gray-900 dark:text-gray-100 font-medium">{user?.email}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Última atualização: </span>
+                    <span className="text-gray-900 dark:text-gray-100 font-medium">{lastUpdate.toLocaleTimeString()}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <HelpButton />
+                  <ThemeToggle />
+                  <button
+                    onClick={handleLogout}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-md"
+                  >
+                    Sair
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+      )}
+
       <div className="fixed top-4 right-4 z-50 space-y-2">
         {notifications.map((notification) => (
           <div
@@ -212,77 +267,7 @@ export default function TransmissionPage() {
         ))}
       </div>
 
-      <div className="relative w-full">
-        <UIBlock block="login_header" className="w-full" />
-        {hasManagedHeader && (
-          <div className="absolute top-2 right-4 z-20">
-            <div className="text-white rounded-lg px-4 py-2 flex items-center gap-3 shadow-lg">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                <span className="text-sm font-medium">{isLive ? 'AO VIVO' : 'OFFLINE'}</span>
-              </div>
-              <span className="text-sm hidden sm:inline border-l border-gray-400 pl-3">{user?.nome}</span>
-              <button
-                onClick={handleLogout}
-                className="px-3 py-1 text-sm font-medium rounded-md bg-red-600 hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                Sair
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {headerChecked && !hasManagedHeader && (
-        <header className="bg-white shadow-lg border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                  <span className="text-xs font-medium text-gray-600">{isLive ? 'AO VIVO' : 'OFFLINE'}</span>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <div className="flex flex-col sm:flex-row gap-3 text-xs">
-                  <div>
-                    <span className="text-gray-500">Usuário: </span>
-                    <span className="text-gray-900 font-medium">{user?.nome}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Categoria: </span>
-                    <span className="text-gray-900 font-medium">{user?.categoria}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Última atualização: </span>
-                    <span className="text-gray-900 font-medium">{lastUpdate.toLocaleTimeString()}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-md"
-                >
-                  Sair
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
-      )}
-
       {/* Header com Logo do Evento removido conforme solicitado */}
-
-      {/* Banner do evento - espaçamento em notebook e desktop */}
-      <div className="md:-mt-2 lg:-mt-6 xl:-mt-2">
-        <Banner 
-          imageUrl="/logo-evento.png"
-          title=""
-          subtitle=""
-          ctaHref={undefined}
-          ctaLabel={undefined}
-          overlayOpacityClass="bg-black/0"
-        />
-      </div>
 
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex-1 w-full">
         <div className="flex flex-col lg:flex-row gap-6">
@@ -410,28 +395,55 @@ export default function TransmissionPage() {
             </div>
           </section>
 
-          <section className="w-full lg:w-[30%] space-y-4">
-            <div className="bg-white shadow-xl rounded-xl overflow-hidden border border-gray-200">
-              <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  Programação
-                </h2>
+          <section className="w-full lg:w-[30%]">
+            <div className="bg-white dark:bg-gray-900 shadow-xl rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+              {/* Abas */}
+              <div className="px-4 pt-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setRightTab('chat')}
+                    className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-t-md border-b-2 ${rightTab === 'chat' ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'}`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                    Bate Papo
+                  </button>
+                  <button
+                    onClick={() => setRightTab('programacao')}
+                    className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-t-md border-b-2 ${rightTab === 'programacao' ? 'border-blue-600 text-blue-700 dark:text-blue-400' : 'border-transparent text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'}`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    Programação
+                  </button>
+                </div>
               </div>
-              <div className="relative h-[400px] lg:h-[500px]">
-                {programacaoLink?.url ? (
-                  <div 
-                    className="absolute inset-0 rounded-lg overflow-hidden shadow bg-white"
-                    dangerouslySetInnerHTML={{ __html: programacaoLink.url }}
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-                    <div className="text-center">
-                      <div className="text-4xl mb-3 opacity-50">📅</div>
-                      <p className="text-gray-500 font-medium">Programação não disponível</p>
+
+              {/* Conteúdo das Abas */}
+              <div className="relative h-[450px] lg:h-[500px]">
+                {rightTab === 'programacao' ? (
+                  programacaoLink?.url ? (
+                    <div 
+                      className="absolute inset-0 rounded-lg overflow-hidden shadow bg-white dark:bg-gray-900"
+                      dangerouslySetInnerHTML={{ __html: programacaoLink.url }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+                      <div className="text-center">
+                        <div className="text-4xl mb-3 opacity-50">📅</div>
+                        <p className="text-gray-500 dark:text-gray-400 font-medium">Programação não disponível</p>
+                      </div>
                     </div>
+                  )
+                ) : (
+                  <div className="absolute inset-0">
+                    <ChatSystem
+                      isVisible={true}
+                      onToggle={() => {}}
+                      userName={user?.nome || user?.email || 'Usuário'}
+                      currentUserId={user?.id as string | undefined}
+                      canModerate={(user?.categoria || '').toLowerCase() === 'admin'}
+                      variant="embedded"
+                      showHeader={false}
+                    />
                   </div>
                 )}
               </div>

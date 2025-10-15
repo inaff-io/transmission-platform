@@ -7,13 +7,15 @@ type BlockKey =
   | 'login_header'
   | 'login_footer'
   | 'transmissao_header'
-  | 'transmissao_footer';
+  | 'transmissao_footer'
+  | 'help_contact';
 
 const ALLOWED_BLOCKS = new Set<BlockKey>([
   'login_header',
   'login_footer',
   'transmissao_header',
   'transmissao_footer',
+  'help_contact',
 ]);
 
 function envFallback(block: BlockKey): string | null {
