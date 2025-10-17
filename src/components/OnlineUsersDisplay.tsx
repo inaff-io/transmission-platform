@@ -13,6 +13,7 @@ export default function OnlineUsersDisplay() {
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const fetchOnlineUsers = async () => {
     try {
@@ -66,11 +67,32 @@ export default function OnlineUsersDisplay() {
         <p className="mt-1 max-w-2xl text-sm text-gray-500">
           Atualizado automaticamente a cada 2 minutos
         </p>
+        {/* Barra de pesquisa */}
+        <div className="mt-4">
+          <label htmlFor="search-users" className="sr-only">Pesquisar usuários</label>
+          <input
+            id="search-users"
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Pesquisar por nome ou email"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
       </div>
       
-      <div className="border-t border-gray-200">
-  <ul className="divide-y divide-gray-200">
-          {onlineUsers.map((user) => (
+      <div className="border-t border-gray-200 max-h-96 overflow-y-auto">
+        <ul className="divide-y divide-gray-200">
+          {onlineUsers
+            .filter(u => {
+              const q = search.trim().toLowerCase();
+              if (!q) return true;
+              return (
+                u.nome.toLowerCase().includes(q) ||
+                u.email.toLowerCase().includes(q)
+              );
+            })
+            .map((user) => (
             <li key={user.id} className="px-4 py-4 sm:px-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
