@@ -27,6 +27,7 @@ export default function TransmissionPage() {
   const [hasManagedHeader, setHasManagedHeader] = useState(false);
   const [headerChecked, setHeaderChecked] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [forcedLive, setForcedLive] = useState(false);
   interface Notification {
     id: number;
     message: string;
@@ -66,6 +67,8 @@ export default function TransmissionPage() {
         if (isActive) {
           addNotification('Transmissão atualizada!');
           setIsLive(true);
+          // Ao receber link ativo, remove estado forçado
+          setForcedLive(false);
         } else {
           if (currentLink) addNotification('Transmissão finalizada');
           setIsLive(false);
@@ -77,6 +80,36 @@ export default function TransmissionPage() {
       setLastUpdate(new Date());
     } catch {}
   }, [currentLink?.url]);
+
+  const handleManualRefresh = useCallback(async () => {
+    // Agora o refresh sempre vai ao mais atual (AO VIVO)
+    addNotification('Atualizando transmissão (indo para o AO VIVO)...');
+    try {
+      // Marca para forçar ir ao AO VIVO na próxima carga
+      localStorage.setItem('transmission_force_live', '1');
+      // Opcionalmente notifica players atuais (se ainda estiver na mesma sessão antes do reload)
+      window.dispatchEvent(new Event('transmission:forceLive'));
+    } catch {}
+    // Pequeno atraso apenas para garantir propagação do evento, então recarrega
+    await new Promise((r) => setTimeout(r, 250));
+    window.location.reload();
+  }, []);
+
+  const handleClearChat = useCallback(async () => {
+    try {
+      const res = await fetch('/api/chat/messages', { method: 'DELETE', credentials: 'include', keepalive: true });
+      if (!res.ok) {
+        addNotification('Falha ao limpar o bate-papo');
+        return;
+      }
+      addNotification('Bate-papo limpo!');
+      try {
+        window.dispatchEvent(new Event('chat:refresh'));
+      } catch {}
+    } catch {
+      addNotification('Erro ao limpar o bate-papo');
+    }
+  }, []);
 
   const removeNotification = (id: number) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
@@ -189,6 +222,28 @@ export default function TransmissionPage() {
     // return () => clearInterval(interval);
   }, [refreshLinks]);
 
+  useEffect(() => {
+    // Ouve atualizações do painel de admin para atualizar transmissão automaticamente
+    const bc = new BroadcastChannel('transmission_updates');
+    bc.onmessage = (ev) => {
+      try {
+        const data = ev.data;
+        if (data && typeof data === 'object' && data.type === 'links_updated') {
+          // Força ir ao AO VIVO ao receber novo link
+          try {
+            localStorage.setItem('transmission_force_live', '1');
+            window.dispatchEvent(new Event('transmission:forceLive'));
+          } catch {}
+          refreshLinks();
+          addNotification('Transmissão atualizada automaticamente!');
+        }
+      } catch {}
+    };
+    return () => {
+      try { bc.close(); } catch {}
+    };
+  }, [refreshLinks]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -221,8 +276,8 @@ export default function TransmissionPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{isLive ? 'AO VIVO' : 'OFFLINE'}</span>
+                  <div className={`w-2 h-2 rounded-full ${(isLive || forcedLive) ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{(isLive || forcedLive) ? 'AO VIVO' : 'OFFLINE'}</span>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -241,6 +296,29 @@ export default function TransmissionPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleManualRefresh}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md"
+                  >
+                    Atualizar transmissão
+                  </button>
+                  {((user?.categoria || '').toLowerCase() === 'admin') && (
+                    (forcedLive ? (
+                      <button
+                        onClick={() => { setForcedLive(false); addNotification('Marcado como OFFLINE'); }}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-md"
+                      >
+                        Cancelar Ao Vivo
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { setForcedLive(true); addNotification('Marcado como AO VIVO'); }}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-md"
+                      >
+                        Forçar Ao Vivo
+                      </button>
+                    ))
+                  )}
                   <HelpButton />
                   <ThemeToggle />
                   <button
@@ -279,6 +357,17 @@ export default function TransmissionPage() {
               <div className="relative group">
                 {(() => {
                   if (!currentLink) {
+                    if (forcedLive) {
+                      return (
+                        <div className="w-full aspect-video flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                          <div className="text-center">
+                            <div className="text-6xl mb-4 opacity-50">⏳</div>
+                            <h3 className="text-xl font-semibold text-gray-700 mb-2">AO VIVO - aguardando sinal</h3>
+                            <p className="text-gray-500">A transmissão começará em breve</p>
+                          </div>
+                        </div>
+                      );
+                    }
                     return (
                       <div className="w-full aspect-video flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
                         <div className="text-center">
@@ -434,16 +523,29 @@ export default function TransmissionPage() {
                     </div>
                   )
                 ) : (
-                  <div className="absolute inset-0">
-                    <ChatSystem
-                      isVisible={true}
-                      onToggle={() => {}}
-                      userName={user?.nome || user?.email || 'Usuário'}
-                      currentUserId={user?.id as string | undefined}
-                      canModerate={(user?.categoria || '').toLowerCase() === 'admin'}
-                      variant="embedded"
-                      showHeader={false}
-                    />
+                  <div className="absolute inset-0 flex flex-col">
+                    {((user?.categoria || '').toLowerCase() === 'admin') && (
+                      <div className="p-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-end">
+                        <button
+                          onClick={handleClearChat}
+                          className="px-3 py-1.5 text-xs font-medium rounded-md bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500"
+                          title="Limpar todas as conversas"
+                        >
+                          Limpar conversas
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <ChatSystem
+                        isVisible={true}
+                        onToggle={() => {}}
+                        userName={user?.nome || user?.email || 'Usuário'}
+                        currentUserId={user?.id as string | undefined}
+                        canModerate={(user?.categoria || '').toLowerCase() === 'admin'}
+                        variant="embedded"
+                        showHeader={false}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
