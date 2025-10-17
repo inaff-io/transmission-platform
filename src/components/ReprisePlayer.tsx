@@ -2,11 +2,12 @@
 
 import React from 'react'
 import { VimeoPlayer } from '@/components/VimeoPlayer'
-import { YouTubePlayer } from '@/components/YouTubePlayer'
+import CustomYouTubePlayer from '@/components/CustomYouTubePlayer'
 
 type Props = {
   url: string
   className?: string
+  posterUrl?: string
 }
 
 function getYouTubeId(url: string): string {
@@ -51,7 +52,7 @@ function getType(url: string): 'youtube' | 'vimeo' | 'html' | 'url' | null {
   }
 }
 
-export default function ReprisePlayer({ url, className = 'w-full aspect-video' }: Props) {
+export default function ReprisePlayer({ url, posterUrl, className = 'w-full aspect-video' }: Props) {
   const type = getType(url)
 
   if (!type) {
@@ -81,17 +82,7 @@ export default function ReprisePlayer({ url, className = 'w-full aspect-video' }
     }
     return (
       <div className={`relative ${className}`}>
-        <YouTubePlayer videoId={id} />
-        {/* Overlay transparente para bloquear cliques e desabilitar botões de play do YouTube */}
-        <div
-          className="absolute inset-0 z-[1000] bg-transparent"
-          style={{ pointerEvents: 'auto', cursor: 'not-allowed' }}
-          title="Interações desabilitadas"
-          onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
-        />
+        <CustomYouTubePlayer videoId={id} posterUrl={posterUrl} className="w-full h-full" />
       </div>
     )
   }
