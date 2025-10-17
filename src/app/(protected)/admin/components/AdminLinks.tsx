@@ -67,7 +67,7 @@ const getVideoType = (url: string): 'vimeo' | 'youtube' | 'html' | null => {
 };
 
 const linkSchema = z.object({
-  tipo: z.enum(['transmissao', 'programacao']),
+  tipo: z.enum(['transmissao', 'programacao', 'reprise']),
   url: z.string().superRefine((val, ctx) => {
     const trimmed = val.trim();
 
@@ -81,13 +81,13 @@ const linkSchema = z.object({
       // eslint-disable-next-line no-new
       new URL(trimmed);
 
-      // Para transmissão, apenas Vimeo/YouTube são aceitos
-      if ((ctx as any).parent?.tipo === 'transmissao') {
+      // Para transmissão e reprise, apenas Vimeo/YouTube são aceitos
+      if (['transmissao', 'reprise'].includes((ctx as any).parent?.tipo)) {
         const videoType = getVideoType(trimmed);
         if (!videoType) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'Para transmissão, apenas URLs do Vimeo ou YouTube são aceitas',
+            message: 'Para transmissão/reprise, apenas URLs do Vimeo ou YouTube são aceitas',
           });
         }
       }
@@ -106,7 +106,7 @@ type LinkFormData = z.infer<typeof linkSchema>;
 
 type Link = {
   id: string;
-  tipo: 'transmissao' | 'programacao';
+  tipo: 'transmissao' | 'programacao' | 'reprise';
   url: string;
   url_original?: string;
   titulo?: string;
@@ -414,6 +414,7 @@ export default function AdminLinks() {
             >
               <option value="transmissao">Transmissão</option>
               <option value="programacao">Programação</option>
+              <option value="reprise">Reprise</option>
             </select>
           </div>
 

@@ -124,21 +124,18 @@ function ensureProgramacaoEmbed(url: string | undefined | null): string | undefi
   if (!url) return url;
   try {
     const parsed = new URL(url);
-    // For known pattern '/programacao/lista/' ensure '/programacao/lista/embed/'
-    if (
-      parsed.pathname.includes('/programacao/lista/') &&
-      !parsed.pathname.includes('/embed/')
-    ) {
+    // Already embeddable if pathname contains '/programacao/lista/embed' (with or without trailing slash)
+    const alreadyEmbed = /\/programacao\/lista\/embed(\/|$)/.test(parsed.pathname);
+    if (parsed.pathname.includes('/programacao/lista/') && !alreadyEmbed) {
       parsed.pathname = parsed.pathname.replace('/programacao/lista/', '/programacao/lista/embed/');
       return parsed.toString();
     }
     return url;
   } catch {
-    // Fallback for non-URL strings
-    if (url.includes('/programacao/lista/') && !url.includes('/embed/')) {
-      return url.replace('/programacao/lista/', '/programacao/lista/embed/');
-    }
-    return url;
+    // Fallback for non-URL strings (e.g., full iframe HTML)
+    // Replace only when the path segment after '/programacao/lista/' does NOT start with 'embed'
+    const replaced = url.replace(/(\/programacao\/lista\/)((?!embed).*)/g, (_m, pre, post) => `${pre}embed/${post}`);
+    return replaced;
   }
 }
 
