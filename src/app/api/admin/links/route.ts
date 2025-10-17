@@ -21,7 +21,7 @@ function createPgClient() {
 }
 
 const linkSchema = z.object({
-  tipo: z.enum(['transmissao', 'programacao']),
+  tipo: z.enum(['transmissao', 'programacao', 'reprise']),
   url: z.string(),
 });
 
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       id: link.id,
       tipo: link.tipo,
       url: link.url,
-      titulo: link.tipo === 'transmissao' ? 'Transmissão' : 'Programação',
+      titulo: link.tipo === 'transmissao' ? 'Transmissão' : link.tipo === 'reprise' ? 'Reprise' : 'Programação',
       created_at: link.created_at,
       ativo_em: link.ativo_em,
       atualizado_em: link.atualizado_em
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
         id: result.rows[0].id,
         tipo: result.rows[0].tipo,
         url: result.rows[0].url,
-        titulo: result.rows[0].tipo === 'transmissao' ? 'Transmissão' : 'Programação',
+        titulo: result.rows[0].tipo === 'transmissao' ? 'Transmissão' : result.rows[0].tipo === 'reprise' ? 'Reprise' : 'Programação',
         created_at: result.rows[0].created_at,
         ativo_em: result.rows[0].ativo_em,
         atualizado_em: result.rows[0].atualizado_em

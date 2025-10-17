@@ -268,7 +268,10 @@ export default function TransmissionPage() {
         backgroundClass="p-2 sm:p-3 md:p-4 bg-gradient-to-br from-blue-50 via-white to-indigo-50 border-b border-gray-200"
         fullBleed={false}
       />
-      <UIBlock block="login_header" className="w-full" />
+      {/* Proteção de clique na área superior (compartilhamento) */}
+      <div className="pointer-events-none select-none">
+        <UIBlock block="login_header" className="w-full" />
+      </div>
 
       {headerChecked && !hasManagedHeader && (
         <header className="bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-700">
@@ -350,8 +353,19 @@ export default function TransmissionPage() {
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex-1 w-full">
         <div className="flex flex-col lg:flex-row gap-6">
           <section className="w-full lg:w-[70%] space-y-4">
-            <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl">
+            <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">Transmissão ao Vivo</h2>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => router.push('/reprise')}
+                  className="group inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-pink-600 via-red-600 to-orange-500 hover:from-pink-500 hover:via-red-500 hover:to-orange-400 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-lg shadow-red-500/30 hover:shadow-xl hover:scale-[1.02]"
+                  title="Ir para Reprise"
+                  aria-label="assista a reprise dia 16"
+                >
+                  <span className="text-lg">⏪</span>
+                  <span className="tracking-wide">assista a reprise dia 16</span>
+                </button>
+              </div>
             </div>
             <div className="bg-white shadow-xl rounded-b-xl overflow-hidden border border-gray-200">
               <div className="relative group">

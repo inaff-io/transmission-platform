@@ -67,21 +67,21 @@ export interface Database {
       links: {
         Row: {
           id: string
-          tipo: 'transmissao' | 'programacao'
+          tipo: 'transmissao' | 'programacao' | 'reprise'
           url: string
           ativo_em: string
           atualizado_em: string
         }
         Insert: {
           id?: string
-          tipo: 'transmissao' | 'programacao'
+          tipo: 'transmissao' | 'programacao' | 'reprise'
           url: string
           ativo_em?: string
           atualizado_em?: string
         }
         Update: {
           id?: string
-          tipo?: 'transmissao' | 'programacao'
+          tipo?: 'transmissao' | 'programacao' | 'reprise'
           url?: string
           ativo_em?: string
           atualizado_em?: string
