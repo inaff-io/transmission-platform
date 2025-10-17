@@ -15,6 +15,24 @@ export default function AdminGlobalChat() {
   const [loading, setLoading] = useState(true)
   // Abre por padrão para administradores visualizarem imediatamente
   const [isOpen, setIsOpen] = useState(true)
+  
+  const handleClearAll = async () => {
+    try {
+      const res = await fetch('/api/chat/messages', {
+        method: 'DELETE',
+        credentials: 'include',
+        cache: 'no-store'
+      });
+      if (!res.ok) {
+        console.error('Falha ao limpar conversas');
+        return;
+      }
+      // Gatilho para recarregar mensagens imediatamente
+      window.dispatchEvent(new Event('chat:refresh'));
+    } catch (e) {
+      console.error('Erro ao limpar conversas', e);
+    }
+  }
 
   useEffect(() => {
     const loadMe = async () => {
@@ -49,13 +67,26 @@ export default function AdminGlobalChat() {
 
   // Bate-papo habilitado para administradores
   return (
-    <ChatSystem
-      isVisible={isOpen}
-      onToggle={() => setIsOpen(prev => !prev)}
-      userName={userName}
-      currentUserId={me?.id}
-      canModerate={canModerate}
-      variant="panel"
-    />
+    <div className="space-y-2">
+      {canModerate && (
+        <div className="flex items-center justify-end">
+          <button
+            onClick={handleClearAll}
+            className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-red-600 text-white hover:bg-red-700"
+            title="Limpar todas as conversas"
+          >
+            Limpar conversas
+          </button>
+        </div>
+      )}
+      <ChatSystem
+        isVisible={isOpen}
+        onToggle={() => setIsOpen(prev => !prev)}
+        userName={userName}
+        currentUserId={me?.id}
+        canModerate={canModerate}
+        variant="panel"
+      />
+    </div>
   )
 }
