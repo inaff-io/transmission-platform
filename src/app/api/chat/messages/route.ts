@@ -123,3 +123,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const cookieStore = cookies();
+    const token = cookieStore.get('authToken')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(token);
+    
+    // Somente administradores podem limpar o chat
+    if ((payload.categoria || '').toLowerCase() !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const supabase = createAdminClient();
+    // Deleta todas as mensagens (usa filtro amplo para evitar necessidade de TRUNCATE)
+    const { data, error, count } = await supabase
+      .from('chat')
+      .delete()
+      .not('id', 'is', null)
+      .select('id', { count: 'exact' });
+
+    if (error) {
+      console.error('DELETE /api/chat/messages error:', error);
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, deleted: count || 0 });
+  } catch (err) {
+    console.error('Unexpected error in DELETE /api/chat/messages:', err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
