@@ -43,7 +43,7 @@ async function getAuthToken() {
 
     return authToken;
   } catch (error) {
-    console.error("Erro ao obter o authToken:", error.message);
+    console.error("Erro ao obter o authToken:", error);
     process.exit(1);
   }
 }

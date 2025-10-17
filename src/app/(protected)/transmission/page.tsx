@@ -549,7 +549,7 @@ export default function TransmissionPage() {
                         </button>
                       </div>
                     )}
-                    <div className="flex-1">
+                    <div className="flex-1 min-h-0">
                       <ChatSystem
                         isVisible={true}
                         onToggle={() => {}}
