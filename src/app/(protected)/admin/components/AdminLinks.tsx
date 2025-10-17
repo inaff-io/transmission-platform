@@ -120,6 +120,7 @@ export default function AdminLinks() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
+  const bcRef = useRef<BroadcastChannel | null>(null);
 
   const {
     register,
@@ -130,6 +131,16 @@ export default function AdminLinks() {
   } = useForm<LinkFormData>({
     resolver: zodResolver(linkSchema),
   });
+
+  useEffect(() => {
+    try {
+      bcRef.current = new BroadcastChannel('transmission_updates');
+    } catch {}
+    return () => {
+      try { bcRef.current?.close(); } catch {}
+      bcRef.current = null;
+    };
+  }, []);
 
   const loadLinks = async () => {
     try {
@@ -181,6 +192,8 @@ export default function AdminLinks() {
       
       reset();
       loadLinks();
+      // Notifica a transmissão sobre atualização de links
+      try { bcRef.current?.postMessage({ type: 'links_updated', payload: responseData }); } catch {}
     } catch (error) {
       console.error('Erro ao salvar link:', error);
       setError(error instanceof Error ? error.message : 'Erro ao salvar link');
@@ -203,6 +216,8 @@ export default function AdminLinks() {
       }
       
       loadLinks();
+      // Notifica a transmissão sobre atualização de links
+      try { bcRef.current?.postMessage({ type: 'links_updated', payload: { id, tipo, action: 'delete' } }); } catch {}
     } catch (error) {
       console.error('Erro ao deletar link:', error);
       setError(error instanceof Error ? error.message : 'Erro ao deletar link');
