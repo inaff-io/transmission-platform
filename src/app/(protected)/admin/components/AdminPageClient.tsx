@@ -140,18 +140,15 @@ export default function AdminPageClient() {
           {/* Main Content - Online Users Area + Global Chat */}
           <div className="flex-1 bg-white shadow-sm rounded-lg overflow-hidden min-h-[800px]">
             <div className="h-full flex flex-col">
-              {/* Header */}
-              <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-gray-900">
-                  Usuários Online (tempo real)
-                </h3>
-              </div>
+              {/* Header removido conforme solicitação */}
               {/* Content */}
               <div className="flex-1 p-4 overflow-auto space-y-6">
-                <OnlineUsersDisplay />
-                <div className="pt-2 border-t border-gray-200">
+                <div className="pb-2">
                   <h3 className="text-sm font-medium text-gray-900 mb-2">Bate Papo</h3>
                   <AdminGlobalChat />
+                </div>
+                <div className="pt-2 border-t border-gray-200">
+                  <OnlineUsersDisplay />
                 </div>
               </div>
             </div>
