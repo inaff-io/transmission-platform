@@ -16,11 +16,7 @@ async function createAdminUser() {
   console.log('Conectando ao PostgreSQL...');
   
   const client = new pg.Client({
-    user: 'postgres',
-    password: 'Sucesso@1234',
-    host: 'db.ywcmqgfbxrejuwcbeolu.supabase.co',
-    port: 5432,
-    database: 'postgres',
+    connectionString: process.env.DATABASE_URL,
     ssl: {
       rejectUnauthorized: false
     }
