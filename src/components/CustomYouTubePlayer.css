@@ -7,9 +7,9 @@
   background-color: #000;
 }
 
-/* Esconde o iframe original do YouTube completamente */
+/* Exibe o iframe do YouTube sob a camada de controles */
 .custom-youtube-player iframe {
-  opacity: 0;
+  opacity: 1;
   pointer-events: none !important;
   z-index: 1;
   position: absolute;

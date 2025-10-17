@@ -6,6 +6,7 @@ import './CustomYouTubePlayer.css';
 interface CustomYouTubePlayerProps {
   videoId: string;
   className?: string;
+  posterUrl?: string;
 }
 
 declare global {
@@ -15,7 +16,7 @@ declare global {
   }
 }
 
-export default function CustomYouTubePlayer({ videoId, className = '' }: CustomYouTubePlayerProps) {
+export default function CustomYouTubePlayer({ videoId, posterUrl, className = '' }: CustomYouTubePlayerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const [player, setPlayer] = useState<any>(null);
@@ -65,6 +66,10 @@ export default function CustomYouTubePlayer({ videoId, className = '' }: CustomY
 
   // Carrega thumbnail do YouTube com alta qualidade
   useEffect(() => {
+    if (posterUrl) {
+      setThumbnail(posterUrl);
+      return;
+    }
     if (videoId) {
       // Tenta obter a thumbnail de alta qualidade (maxresdefault)
       const checkImage = (url: string) => {
@@ -96,7 +101,7 @@ export default function CustomYouTubePlayer({ videoId, className = '' }: CustomY
 
       checkAndSetThumbnail();
     }
-  }, [videoId]);
+  }, [videoId, posterUrl]);
 
   // Configuração e inicialização do YouTube Player
   useEffect(() => {
@@ -328,10 +333,10 @@ export default function CustomYouTubePlayer({ videoId, className = '' }: CustomY
       onClick={handleTouchShowControls}
       onTouchStart={handleTouchShowControls}
     >
-      {/* Container do player do YouTube (iframe oculto) */}
+      {/* Container do player do YouTube (iframe visível sob os controles) */}
       <div 
         ref={playerRef} 
-        className="w-full h-full absolute opacity-0 pointer-events-none" 
+        className="w-full h-full absolute pointer-events-none" 
       />
       
       {/* Overlays de bloqueio estratégicos para garantir que elementos do YouTube sejam bloqueados */}
@@ -349,7 +354,7 @@ export default function CustomYouTubePlayer({ videoId, className = '' }: CustomY
       
       {/* NOSSA INTERFACE PERSONALIZADA - substitui completamente o YouTube */}
       <div 
-        className="absolute inset-0 z-[999] pointer-events-auto bg-black flex items-center justify-center overflow-hidden"
+        className="absolute inset-0 z-[999] pointer-events-auto bg-transparent flex items-center justify-center overflow-hidden"
         onClick={(e) => {
           e.stopPropagation();
           togglePlay();
@@ -390,13 +395,6 @@ export default function CustomYouTubePlayer({ videoId, className = '' }: CustomY
           </div>
         )}
         
-        {/* Fundo preto quando o vídeo está ativo para esconder o iframe do YouTube */}
-        {isPlaying && playerState === 1 && (
-          <div className="absolute inset-0 bg-black">
-            {/* Mantem fundo preto para esconder o player original do YouTube */}
-          </div>
-        )}
-      
       {/* Controles customizados - Responsivos para mobile */}
       <div 
         className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent transition-opacity duration-300 ${

@@ -9,7 +9,7 @@ import HelpButton from '@/components/ui/HelpButton';
 import { useRouter } from 'next/navigation';
 import { clearAuth } from '@/lib/auth';
 import type { Link, Usuario } from '@/types/database';
-import '../(protected)/transmission/styles.css';
+import '../../(protected)/transmission/styles.css';
 
 type RepriseLink = {
   id: string;
@@ -20,8 +20,10 @@ type RepriseLink = {
   created_at: string | null;
 } | null;
 
-export default function ReprisePage() {
+export default function RepriseDayPage({ params }: { params: { day: string } }) {
   const router = useRouter();
+  const day = Number(params.day);
+  const posterUrl = day === 16 ? '/16.10.png' : day === 17 ? '/17.10.png' : undefined;
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<Usuario | null>(null);
   const [reprise, setReprise] = useState<RepriseLink>(null);
@@ -33,18 +35,11 @@ export default function ReprisePage() {
   const notiActiveRef = useRef<Set<string>>(new Set());
   const bcRef = useRef<BroadcastChannel | null>(null);
 
-  const removeNotification = (id: number) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
   const addNotification = (message: string) => {
-    if (notiActiveRef.current.has(message)) return;
-    notiActiveRef.current.add(message);
-    const timestamp = Date.now();
-    setNotifications(prev => [...prev, { id: timestamp, message }]);
+    const id = Date.now();
+    setNotifications((prev) => [...prev, { id, message }]);
     setTimeout(() => {
-      removeNotification(timestamp);
-      notiActiveRef.current.delete(message);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
     }, 3000);
   };
 
@@ -80,15 +75,15 @@ export default function ReprisePage() {
 
   const loadReprise = useCallback(async () => {
     try {
-      const res = await fetch('/api/reprise', { cache: 'no-store', credentials: 'include', keepalive: true });
+      const res = await fetch(`/api/reprise/${day}`, { cache: 'no-store', credentials: 'include', keepalive: true });
       const data = await res.json();
       setReprise(data?.reprise || null);
       setLastUpdate(new Date());
     } catch (err) {
-      console.error('Erro ao carregar reprise:', err);
+      console.error('Erro ao carregar reprise por dia:', err);
       setReprise(null);
     }
-  }, []);
+  }, [day]);
 
   const handleManualRefresh = useCallback(async () => {
     addNotification('Atualizando reprise...');
@@ -144,6 +139,17 @@ export default function ReprisePage() {
     try { return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }); } catch { return null; }
   })();
 
+  if (!day || Number.isNaN(day)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-bold">Dia inválido</h2>
+          <p className="text-gray-600">Use uma rota válida como /reprise/16</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900">
       <Banner 
@@ -165,76 +171,62 @@ export default function ReprisePage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${reprise?.url ? 'bg-purple-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{reprise?.url ? 'REPRISE' : 'OFFLINE'}</span>
-                </div>
+                <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Reprise — {day}</h1>
+                <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">VOD</span>
               </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 mr-2">
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white font-semibold">
                     {user?.nome ? user.nome[0].toUpperCase() : '?'}
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-medium text-gray-900 dark:text-gray-100 leading-tight">{user?.nome}</span>
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400">{user?.email}</span>
-                  </div>
-                  <div className="hidden sm:block text-xs text-gray-500 dark:text-gray-400 ml-3">
-                    Última atualização: <span className="text-gray-900 dark:text-gray-100 font-medium">{lastUpdate.toLocaleTimeString()}</span>
+                  <div className="hidden sm:block">
+                    <div className="text-xs font-medium text-gray-900 dark:text-gray-100 leading-tight">{user?.nome}</div>
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400">{user?.email}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleManualRefresh}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md"
-                  >
-                    Atualizar reprise
-                  </button>
-                  <button
-                    onClick={() => router.push('/hub-reprises')}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
-                    title="Voltar para a Home das Reprises"
-                  >
-                    <span className="text-base">⬅️</span>
-                    <span>Voltar</span>
-                  </button>
-                  <HelpButton />
-                  <ThemeToggle />
-                  <button
-                    onClick={handleLogout}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-md"
-                  >
-                    Sair
-                  </button>
-                </div>
+                <button
+                  onClick={handleManualRefresh}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-300"
+                  title="Atualizar reprise"
+                >
+                  <span className="text-base">🔄</span>
+                  <span>Atualizar</span>
+                </button>
+                <button
+                  onClick={() => router.push('/hub-reprises')}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
+                  title="Voltar para a Home das Reprises"
+                >
+                  <span className="text-base">⬅️</span>
+                  <span>Voltar</span>
+                </button>
+                <HelpButton />
+                <ThemeToggle />
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-md"
+                  title="Sair"
+                >
+                  <span className="text-base">🚪</span>
+                  <span>Sair</span>
+                </button>
               </div>
             </div>
           </div>
         </header>
       )}
 
-      <div className="fixed top-4 right-4 z-50 space-y-2">
-        {notifications.map((notification) => (
-          <div
-            key={notification.id}
-            className="bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-slide-in-right"
-          >
-            {notification.message}
-          </div>
-        ))}
-      </div>
-
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex-1 w-full">
         <div className="flex flex-col lg:flex-row gap-6">
           <section className="w-full lg:w-[70%] space-y-4">
             <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Reprise da Transmissão</h2>
+                <h2 className="text-lg font-bold text-gray-900">Reprise da Transmissão — {day}</h2>
                 {formattedDate && (
                   <p className="text-xs text-gray-600">Última atividade: {formattedDate}</p>
                 )}
               </div>
-
+              {/* Sem botão "Voltar ao Ao Vivo" em modo reprise */}
             </div>
             <div className="bg-white shadow-xl rounded-b-xl overflow-hidden border border-gray-200">
               <div className="relative group">
@@ -247,13 +239,13 @@ export default function ReprisePage() {
                     </div>
                   </div>
                 ) : reprise?.url ? (
-                  <ReprisePlayer url={reprise.url} />
+                  <ReprisePlayer url={reprise.url} posterUrl={posterUrl} />
                 ) : (
                   <div className="w-full aspect-video flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
                     <div className="text-center">
-                      <div className="text-6xl mb-4 opacity-50">📺</div>
-                      <h3 className="text-xl font-semibold text-gray-700 mb-2">Reprise Indisponível</h3>
-                      <p className="text-gray-500">Nenhum conteúdo de reprise disponível no momento</p>
+                      <div className="text-6xl mb-4 opacity-50">📭</div>
+                      <h3 className="text-xl font-semibold text-gray-700 mb-2">Não há vídeos disponíveis para este dia</h3>
+                      <p className="text-gray-500">Selecione outro dia na Home de Reprises</p>
                     </div>
                   </div>
                 )}
@@ -261,38 +253,37 @@ export default function ReprisePage() {
             </div>
           </section>
 
-          <section className="w-full lg:w-[30%]">
-            <div className="bg-white dark:bg-gray-900 shadow-xl rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-              <div className="px-4 pt-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-t-md border-b-2 border-blue-600 text-blue-700 dark:text-blue-400">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    Programação
-                  </span>
-                </div>
-              </div>
-
+          <aside className="w-full lg:w-[30%] space-y-4">
+            <div className="bg-white shadow-xl rounded-xl border border-gray-200 p-4">
+              <h3 className="text-md font-semibold text-gray-900 mb-2">Programação</h3>
               <div className="relative h-[450px] lg:h-[500px]">
                 {programacaoLink?.url ? (
                   <div 
-                    className="absolute inset-0 rounded-lg overflow-hidden shadow bg-white dark:bg-gray-900"
+                    className="absolute inset-0 rounded-lg overflow-hidden shadow bg-white"
                     dangerouslySetInnerHTML={{ __html: programacaoLink.url }}
                   />
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
                     <div className="text-center">
                       <div className="text-4xl mb-3 opacity-50">📅</div>
-                      <p className="text-gray-500 dark:text-gray-400 font-medium">Programação não disponível</p>
+                      <p className="text-gray-500 font-medium">Programação não disponível</p>
                     </div>
                   </div>
                 )}
               </div>
             </div>
-          </section>
+          </aside>
+        </div>
+
+        {/* Notifications */}
+        <div className="fixed bottom-4 right-4 space-y-2 z-50">
+          {notifications.map((n) => (
+            <div key={n.id} className="px-4 py-2 rounded-lg bg-black text-white shadow-lg opacity-90">
+              {n.message}
+            </div>
+          ))}
         </div>
       </main>
-
-      <UIBlock block="transmissao_footer" className="w-full mt-auto" />
     </div>
   );
 }
