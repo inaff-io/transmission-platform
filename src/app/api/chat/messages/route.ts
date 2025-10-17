@@ -138,18 +138,19 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createAdminClient();
     // Deleta todas as mensagens (usa filtro amplo para evitar necessidade de TRUNCATE)
-    const { data, error, count } = await supabase
+    const { data, error } = await supabase
       .from('chat')
       .delete()
       .not('id', 'is', null)
-      .select('id', { count: 'exact' });
+      .select('id');
 
     if (error) {
       console.error('DELETE /api/chat/messages error:', error);
       return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, deleted: count || 0 });
+    const deletedCount = Array.isArray(data) ? data.length : 0;
+    return NextResponse.json({ success: true, deleted: deletedCount });
   } catch (err) {
     console.error('Unexpected error in DELETE /api/chat/messages:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
