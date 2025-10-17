@@ -56,6 +56,29 @@ export async function GET(
       }
     }
 
+    // Fallback por ENV genérica (reprise/transmissão)
+    if (!row) {
+      const envs = process.env as Record<string, string | undefined>
+      const envUrl =
+        envs.NEXT_PUBLIC_FALLBACK_REPRISE_URL ||
+        envs.FALLBACK_REPRISE_URL ||
+        envs.NEXT_PUBLIC_FALLBACK_TRANSMISSAO_URL ||
+        envs.FALLBACK_TRANSMISSAO_URL ||
+        ''
+      const url = safeUrl(envUrl)
+      if (url) {
+        const now = new Date().toISOString()
+        row = {
+          id: `env-reprise-fallback-${day}`,
+          tipo: 'reprise',
+          url,
+          ativo_em: now,
+          atualizado_em: now,
+          created_at: now,
+        }
+      }
+    }
+
     const reprise = row
       ? {
           id: String(row.id),
