@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 interface ChatMessage {
   id: string;
@@ -37,6 +37,37 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
   const [loading, setLoading] = useState(true);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  const loadMessages = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/chat/messages', { cache: 'no-store', credentials: 'include', keepalive: true });
+      if (!res.ok) throw new Error('Falha ao carregar mensagens');
+      const data = await res.json();
+      const msgs = (data.messages || []).map((m: any) => ({
+        id: m.id,
+        user: m.userName || 'Usuário',
+        message: m.message,
+        timestamp: new Date(m.createdAt),
+        userId: m.userId,
+        categoria: m.categoria,
+      })) as ChatMessage[];
+      msgs.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+      setMessages(msgs);
+      setIsConnected(true);
+    } catch (e) {
+      setIsConnected(false);
+      setMessages(prev => prev.length === 0 ? [{
+        id: Date.now().toString(),
+        user: 'Sistema',
+        message: `Bem-vindo ao chat, ${userName}!`,
+        timestamp: new Date(),
+        isSystem: true,
+      }] : prev);
+    } finally {
+      setLoading(false);
+    }
+  }, [userName]);
+
   const scrollToBottom = (smooth = false) => {
     const el = messagesContainerRef.current;
     if (el) {
@@ -49,43 +80,15 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
   }, [messages]);
 
   useEffect(() => {
-    // Substituir simulação por carga da API
-    const loadMessages = async () => {
-      try {
-        const res = await fetch('/api/chat/messages', { cache: 'no-store', credentials: 'include', keepalive: true });
-        if (!res.ok) throw new Error('Falha ao carregar mensagens');
-        const data = await res.json();
-        const msgs = (data.messages || []).map((m: any) => ({
-          id: m.id,
-          user: m.userName || 'Usuário',
-          message: m.message,
-          timestamp: new Date(m.createdAt),
-          userId: m.userId,
-          categoria: m.categoria,
-        })) as ChatMessage[];
-        // garantir ordenação cronológica crescente para exibição
-        msgs.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-        setMessages(msgs);
-        setIsConnected(true);
-      } catch (e) {
-        // Em caso de erro, mantenha mensagens existentes e apenas marque desconectado
-        setIsConnected(false);
-        setMessages(prev => prev.length === 0 ? [{
-          id: Date.now().toString(),
-          user: 'Sistema',
-          message: `Bem-vindo ao chat, ${userName}!`,
-          timestamp: new Date(),
-          isSystem: true,
-        }] : prev);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadMessages();
     const interval = setInterval(loadMessages, 5000);
-    return () => clearInterval(interval);
-  }, [userName]);
+    const refreshHandler = () => { loadMessages(); };
+    window.addEventListener('chat:refresh', refreshHandler as EventListener);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('chat:refresh', refreshHandler as EventListener);
+    };
+  }, [loadMessages]);
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
