@@ -109,6 +109,25 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
   const [lastNonZeroVol, setLastNonZeroVol] = useState(50)
   const interactedRef = useRef(false)
   const YT_STATE_PLAYING = 1
+  // Persist current time across refreshes
+  const timeKeyRef = useRef<string | null>(null)
+  const qualityAttemptsRef = useRef(0)
+  const QUALITY_TARGET = 'hd1080'
+  const [playbackQuality, setPlaybackQuality] = useState<string | null>(null)
+  const [qualityMessage, setQualityMessage] = useState<string | null>(null)
+
+  const formatYouTubeQuality = (code: string | null) => {
+    if (!code) return 'Desconhecida'
+    switch (code) {
+      case 'highres': return 'Alta (Highres)'
+      case 'hd1080': return '1080p'
+      case 'hd720': return '720p'
+      case 'large': return '480p'
+      case 'medium': return '360p'
+      case 'small': return '240p'
+      default: return code
+    }
+  }
 
   const ensureIframeAttributes = () => {
     const iframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null
@@ -170,6 +189,43 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
     window.setTimeout(checkInteraction, 300)
   }
 
+  const forceYouTubeQuality = () => {
+    try {
+      const player = playerRef.current as any
+      if (!player) return
+      const levels: string[] = player.getAvailableQualityLevels?.() || []
+      const preferred = ['hd1080', 'highres', 'hd720', 'large', 'medium', 'small', 'tiny']
+      const best = preferred.find(q => levels.includes(q)) || null
+      if (best) {
+        player.setPlaybackQuality?.(best)
+        setPlaybackQuality(best)
+        setQualityMessage(best === QUALITY_TARGET ? 'Aplicado 1080p' : `1080p indisponível; aplicado ${formatYouTubeQuality(best)}`)
+        window.setTimeout(() => setQualityMessage(null), 2000)
+      } else {
+        setQualityMessage('Qualidade não disponível pelo player')
+        window.setTimeout(() => setQualityMessage(null), 2000)
+      }
+    } catch {
+      setQualityMessage('Falha ao aplicar qualidade')
+      window.setTimeout(() => setQualityMessage(null), 2000)
+    }
+  }
+
+  // Vai para o ponto mais atual (live edge) ao carregar/refresh
+  const goLiveYouTube = () => {
+    try {
+      const player = playerRef.current as any
+      if (!player) return
+      const d = Number(player.getDuration?.() ?? 0)
+      if (typeof d === 'number' && !Number.isNaN(d) && d > 0 && d < 1e9) {
+        player.seekTo?.(Math.max(0, d - 0.5), true)
+      } else {
+        // Fallback: busca para muito à frente, o player clampa ao fim
+        player.seekTo?.(1e9, true)
+      }
+    } catch {}
+  }
+
   const clearFade = () => {
     if (fadeTimerRef.current) {
       clearInterval(fadeTimerRef.current)
@@ -212,6 +268,11 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
   useEffect(() => {
     setVideoId(getYouTubeId(videoUrlOrId))
   }, [videoUrlOrId])
+
+  // Update timeKey when videoId changes
+  useEffect(() => {
+    timeKeyRef.current = videoId ? `transmission_time_yt_${videoId}` : null
+  }, [videoId])
 
   // Persistência de volume e restauração ao carregar
   useEffect(() => {
@@ -279,6 +340,61 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
               attemptAudioAutoplay()
             } catch {}
             setReady(true)
+            try {
+              const q = (playerRef.current as any)?.getPlaybackQuality?.()
+              if (q) setPlaybackQuality(String(q))
+            } catch {}
+            // Sugerir qualidade já ao carregar o vídeo
+            try {
+              (playerRef.current as any)?.loadVideoById?.(videoId, undefined, QUALITY_TARGET)
+            } catch {}
+            // Restaurar posição ou ir para o mais atual conforme flag
+            try {
+              const forceLive = localStorage.getItem('transmission_force_live') === '1'
+              const key = timeKeyRef.current
+              if (forceLive) {
+                try { if (key) localStorage.removeItem(key) } catch {}
+                goLiveYouTube()
+                try { localStorage.removeItem('transmission_force_live') } catch {}
+              } else if (key) {
+                const t = Number(localStorage.getItem(key) ?? '0')
+                if (!Number.isNaN(t) && t > 0) {
+                  try { (playerRef.current as any)?.seekTo?.(t, true) } catch {}
+                }
+              }
+            } catch {}
+            // Try to force quality repeatedly a few times
+            qualityAttemptsRef.current = 0
+            const tick = () => {
+              if (qualityAttemptsRef.current < 6) {
+                forceYouTubeQuality()
+                qualityAttemptsRef.current += 1
+                window.setTimeout(tick, 600)
+              }
+            }
+            window.setTimeout(tick, 200)
+          },
+          onStateChange: (e: any) => {
+            try {
+              if (e?.data === YT_STATE_PLAYING) {
+                // Reinforce quality when playback starts
+                forceYouTubeQuality()
+                try {
+                  const q = (playerRef.current as any)?.getPlaybackQuality?.()
+                  if (q) setPlaybackQuality(String(q))
+                } catch {}
+              }
+            } catch {}
+          },
+          onPlaybackQualityChange: (e: any) => {
+            try {
+              const q = e?.data
+              if (q) setPlaybackQuality(String(q))
+              if (q && q !== QUALITY_TARGET) {
+                // Try to set back to target
+                forceYouTubeQuality()
+              }
+            } catch {}
           },
           onError: () => {
             setReady(true)
@@ -309,6 +425,23 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
         playerRef.current.loadVideoById(videoId)
         ensureIframeAttributes()
         attemptAudioAutoplay(prevVol)
+        // Restaurar posição ou ir para o mais atual conforme flag
+        try {
+          const forceLive = localStorage.getItem('transmission_force_live') === '1'
+          const key = timeKeyRef.current
+          if (forceLive) {
+            try { if (key) localStorage.removeItem(key) } catch {}
+            window.setTimeout(() => { goLiveYouTube() }, 150)
+            try { localStorage.removeItem('transmission_force_live') } catch {}
+          } else if (key) {
+            const t = Number(localStorage.getItem(key) ?? '0')
+            if (!Number.isNaN(t) && t > 0) {
+              window.setTimeout(() => {
+                try { (playerRef.current as any)?.seekTo?.(t, true) } catch {}
+              }, 150)
+            }
+          }
+        } catch {}
       } catch {}
     }
   }, [videoId])
@@ -338,6 +471,57 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
       }, 650)
     } catch {}
   }
+
+  const seekBy = (deltaSeconds: number) => {
+    try {
+      const player = playerRef.current as any
+      if (!player) return
+      if (typeof player.getCurrentTime !== 'function' || typeof player.seekTo !== 'function') return
+      const current = Number(player.getCurrentTime?.() ?? 0)
+      let target = current + deltaSeconds
+      if (Number.isNaN(target)) return
+      // evita valores negativos
+      if (target < 0) target = 0
+      player.seekTo(target, true)
+    } catch {}
+  }
+
+  // Save current time periodically and on refresh request
+  const saveCurrentTime = () => {
+    try {
+      const key = timeKeyRef.current
+      if (!key) return
+      const player = playerRef.current as any
+      if (!player || typeof player.getCurrentTime !== 'function') return
+      const t = Number(player.getCurrentTime?.() ?? 0)
+      if (!Number.isNaN(t) && t >= 0) {
+        localStorage.setItem(key, String(t))
+      }
+    } catch {}
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const interval = window.setInterval(() => {
+      saveCurrentTime()
+    }, 1000)
+    const saveHandler = () => { saveCurrentTime() }
+    const forceLiveHandler = () => {
+      try {
+        localStorage.setItem('transmission_force_live', '1')
+        goLiveYouTube()
+      } catch {}
+    }
+    window.addEventListener('transmission:saveTime' as any, saveHandler as any)
+    window.addEventListener('transmission:forceLive' as any, forceLiveHandler as any)
+    window.addEventListener('beforeunload', saveHandler as any)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('transmission:saveTime' as any, saveHandler as any)
+      window.removeEventListener('transmission:forceLive' as any, forceLiveHandler as any)
+      window.removeEventListener('beforeunload', saveHandler as any)
+    }
+  }, [ready, videoId])
 
   const updateVolume = (value: number, duration = 400) => {
     const v = Math.max(0, Math.min(100, Number(value)))
@@ -502,6 +686,70 @@ export default function LockedYouTubePlayer({ videoUrlOrId, className, onRequire
             >
               ⏸️
             </button>
+          </div>
+
+          {/* Atrasar/Avançar */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => seekBy(-10)}
+              className="text-white hover:text-blue-300 transition-colors"
+              title="Atrasar 10s"
+              aria-label="Atrasar 10 segundos"
+              disabled={!ready}
+            >
+              ⏪ 10s
+            </button>
+            <button
+              type="button"
+              onClick={() => seekBy(-5)}
+              className="text-white hover:text-blue-300 transition-colors"
+              title="Atrasar 5s"
+              aria-label="Atrasar 5 segundos"
+              disabled={!ready}
+            >
+              ⏪ 5s
+            </button>
+            <button
+              type="button"
+              onClick={() => seekBy(5)}
+              className="text-white hover:text-blue-300 transition-colors"
+              title="Avançar 5s"
+              aria-label="Avançar 5 segundos"
+              disabled={!ready}
+            >
+              ⏩ 5s
+            </button>
+            <button
+              type="button"
+              onClick={() => seekBy(10)}
+              className="text-white hover:text-blue-300 transition-colors"
+              title="Avançar 10s"
+              aria-label="Avançar 10 segundos"
+              disabled={!ready}
+            >
+              ⏩ 10s
+            </button>
+          </div>
+
+          {/* Indicador de qualidade e reforço */}
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-white/80 text-sm" title="Qualidade atual">
+              Qualidade: {formatYouTubeQuality(playbackQuality)}
+            </span>
+            <button
+              type="button"
+              onClick={() => forceYouTubeQuality()}
+              className="text-white hover:text-blue-300 transition-colors"
+              title="Reforçar 1080p"
+              aria-label="Reforçar 1080p"
+              disabled={!ready}
+            >
+              🔧 1080p
+            </button>
+            {qualityMessage && (
+              <span className="text-white/70 text-xs">{qualityMessage}</span>
+            )}
           </div>
         </div>
       </div>
