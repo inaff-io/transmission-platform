@@ -30,6 +30,7 @@ interface ChatSystemProps {
 }
 
 export default function ChatSystem({ isVisible, onToggle, userName, canModerate = false, variant = 'floating', showHeader = true, containerClass, currentUserId }: ChatSystemProps) {
+  console.log('ChatSystem props:', { isVisible, canModerate, userName, currentUserId });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -37,6 +38,10 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
   // novo: carregamento
   const [loading, setLoading] = useState(true);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    console.log('Messages updated:', messages.length);
+  }, [messages]);
 
   const loadMessages = useCallback(async () => {
     setLoading(true);
@@ -216,7 +221,7 @@ export default function ChatSystem({ isVisible, onToggle, userName, canModerate 
       )}
 
       {/* Área de Mensagens */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
         {loading && (
           <div className="text-xs text-gray-500 dark:text-gray-400">Carregando mensagens...</div>
         )}

@@ -8,7 +8,7 @@ async function sendTestMessages() {
   }
 
   const url = "http://localhost:3002/api/chat/messages";
-  const totalMessages = 1000;
+  const totalMessages = 500;
 
   console.log(`Enviando ${totalMessages} mensagens de teste...`);
 
