@@ -78,6 +78,49 @@ const toStringValue = (value: unknown) =>
     ? String(value).trim()
     : '';
 
+/**
+ * Gera um ID único baseado no email do usuário
+ * Adiciona sufixo numérico se ID já existir
+ */
+async function generateUniqueUserId(
+  supabase: ReturnType<typeof createAdminClient>,
+  email: string,
+  nome: string
+): Promise<string | null> {
+  // Tenta usar parte do email como ID base
+  let baseId = email.split('@')[0].toLowerCase().replaceAll(/[^a-z0-9]/g, '_');
+  
+  // Se o ID base estiver vazio, usa parte do nome
+  if (!baseId || baseId.length < 3) {
+    baseId = nome
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replaceAll(/[^a-z0-9]/g, '_')
+      .slice(0, 20);
+  }
+  
+  const maxAttempts = 20;
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const candidateId = attempt === 0 ? baseId : `${baseId}_${attempt}`;
+    
+    // Verifica se ID já existe
+    const { data: existing } = await supabase
+      .from('usuarios')
+      .select('id')
+      .eq('id', candidateId)
+      .single();
+    
+    if (!existing) {
+      return candidateId;
+    }
+  }
+  
+  // Se não conseguiu gerar ID único, usa timestamp
+  return `${baseId}_${Date.now()}`;
+}
+
 export async function POST(request: Request) {
   try {
     // Verifica autenticação de admin
@@ -178,8 +221,13 @@ export async function POST(request: Request) {
             continue;
           }
         } else {
-          // Cria novo usuário com ID baseado no email
-          const userId = userData.email.split('@')[0].toLowerCase().replaceAll(/[^a-z0-9]/g, '_');
+          // Gera ID único automaticamente
+          const userId = await generateUniqueUserId(supabase, userData.email, userData.nome);
+          
+          if (!userId) {
+            results.errors.push(`Erro ao gerar ID único para ${userData.nome}`);
+            continue;
+          }
           
           const { error } = await supabase
             .from('usuarios')
@@ -196,7 +244,7 @@ export async function POST(request: Request) {
             });
 
           if (error) {
-            if (error.code === '23505') { // Unique violation
+            if (error.code === '23505') {
               results.errors.push(`Usuário já existe: ${userData.email} ou CPF ${userData.cpf}`);
             } else {
               results.errors.push(`Erro ao inserir ${userData.nome}: ${error.message}`);
