@@ -1,9 +1,6 @@
+// Use a variável de ambiente DATABASE_URL para conexão
 export const dbConfig = {
-  user: 'postgres.apamlthhsppsjvbxzouv',
-  password: 'Sucesso@1234',
-  host: 'aws-1-sa-east-1.pooler.supabase.com',
-  port: 6543,
-  database: 'postgres',
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   }

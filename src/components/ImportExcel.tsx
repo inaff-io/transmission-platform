@@ -21,56 +21,51 @@ export default function ImportExcel({ onSuccess }: ImportExcelProps) {
       setMessage('');
       setIsError(false);
 
-      // Lê o arquivo Excel
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const data = e.target?.result;
-          const workbook = XLSX.read(data, { type: 'binary' });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(sheet);
+      // Lê o arquivo Excel usando arrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(sheet);
 
-          // Envia os dados para a API
-          const response = await fetch('/api/admin/import-excel', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            keepalive: true,
-            body: JSON.stringify({ data: jsonData }),
-          });
+      // Envia os dados para a API
+      const response = await fetch('/api/admin/import-excel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        keepalive: true,
+        body: JSON.stringify({ data: jsonData }),
+      });
 
-          const result = await response.json();
+      const result = await response.json();
 
-          if (!response.ok) {
-            throw new Error(result.message || 'Erro ao importar dados');
+      if (!response.ok) {
+        throw new Error(result.message || result.error || 'Erro ao importar dados');
+      }
+
+      // Monta mensagem detalhada
+      let successMessage = result.message || 'Dados importados com sucesso!';
+      if (result.results) {
+        successMessage += `\n✅ ${result.results.success} usuário(s) importado(s)`;
+        if (result.results.errors && result.results.errors.length > 0) {
+          successMessage += `\n⚠️ ${result.results.errors.length} erro(s):\n`;
+          successMessage += result.results.errors.slice(0, 5).join('\n');
+          if (result.results.errors.length > 5) {
+            successMessage += `\n... e mais ${result.results.errors.length - 5} erro(s)`;
           }
-
-          setMessage('Dados importados com sucesso!');
-          setIsError(false);
-          if (onSuccess) await onSuccess();
-        } catch (error) {
-          console.error('Erro ao processar arquivo:', error);
-          setMessage(error instanceof Error ? error.message : 'Erro ao processar arquivo');
-          setIsError(true);
-        } finally {
-          setIsLoading(false);
         }
-      };
+      }
 
-      reader.onerror = () => {
-        setMessage('Erro ao ler o arquivo');
-        setIsError(true);
-        setIsLoading(false);
-      };
-
-      reader.readAsBinaryString(file);
+      setMessage(successMessage);
+      setIsError(result.results?.errors?.length > 0 && result.results.success === 0);
+      if (onSuccess) await onSuccess();
     } catch (error) {
-      console.error('Erro ao fazer upload:', error);
-      setMessage(error instanceof Error ? error.message : 'Erro ao fazer upload do arquivo');
+      console.error('Erro ao processar arquivo:', error);
+      setMessage(error instanceof Error ? error.message : 'Erro ao processar arquivo');
       setIsError(true);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -81,14 +76,16 @@ export default function ImportExcel({ onSuccess }: ImportExcelProps) {
       
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="excel-file-input" className="block text-sm font-medium text-gray-700 mb-2">
             Selecione o arquivo Excel (.xlsx)
           </label>
           <input
+            id="excel-file-input"
             type="file"
-            accept=".xlsx"
+            accept=".xlsx,.xls"
             onChange={handleFileUpload}
             disabled={isLoading}
+            aria-label="Selecione o arquivo Excel para importar usuários"
             className="block w-full text-sm text-gray-500
               file:mr-4 file:py-2 file:px-4
               file:rounded-md file:border-0

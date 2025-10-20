@@ -153,26 +153,56 @@ export async function POST(request: Request) {
               : 'user',
         };
 
-        // Insere no banco
-        const { error } = await supabase
+        // Verifica se usuário já existe (por email ou CPF)
+        const { data: existingUser } = await supabase
           .from('usuarios')
-          .upsert(
-            {
-              ...userData,
-              updated_at: new Date().toISOString(),
-            },
-            {
-              onConflict: 'email,cpf',
-            }
-          );
+          .select('id, email, cpf')
+          .or(`email.eq.${userData.email},cpf.eq.${cpf}`)
+          .single();
 
-        if (error) {
-          if (error.code === '23505') { // Unique violation
-            results.errors.push(`Usuário já existe: ${userData.email} ou ${userData.cpf}`);
-          } else {
-            results.errors.push(`Erro ao inserir ${userData.nome}: ${error.message}`);
+        if (existingUser) {
+          // Atualiza usuário existente
+          const { error } = await supabase
+            .from('usuarios')
+            .update({
+              nome: userData.nome,
+              email: userData.email,
+              cpf: userData.cpf,
+              categoria: userData.categoria,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingUser.id);
+
+          if (error) {
+            results.errors.push(`Erro ao atualizar ${userData.nome}: ${error.message}`);
+            continue;
           }
-          continue;
+        } else {
+          // Cria novo usuário com ID baseado no email
+          const userId = userData.email.split('@')[0].toLowerCase().replaceAll(/[^a-z0-9]/g, '_');
+          
+          const { error } = await supabase
+            .from('usuarios')
+            .insert({
+              id: userId,
+              nome: userData.nome,
+              email: userData.email,
+              cpf: userData.cpf,
+              categoria: userData.categoria,
+              status: true,
+              ativo: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+
+          if (error) {
+            if (error.code === '23505') { // Unique violation
+              results.errors.push(`Usuário já existe: ${userData.email} ou CPF ${userData.cpf}`);
+            } else {
+              results.errors.push(`Erro ao inserir ${userData.nome}: ${error.message}`);
+            }
+            continue;
+          }
         }
 
         results.success++;

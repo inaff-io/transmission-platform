@@ -1,13 +1,9 @@
 import pg from 'pg';
 
-// Função para criar um cliente PostgreSQL
+// Função para criar um cliente PostgreSQL usando DATABASE_URL do .env
 function createPgClient() {
   return new pg.Client({
-    user: 'postgres.apamlthhsppsjvbxzouv',
-    password: 'Sucesso@1234',
-    host: 'aws-1-sa-east-1.pooler.supabase.com',
-    port: 6543,
-    database: 'postgres',
+    connectionString: process.env.DATABASE_URL,
     ssl: {
       rejectUnauthorized: false
     }

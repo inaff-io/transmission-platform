@@ -24,32 +24,49 @@ export default function EditarUsuarioPage({ params }: { params: { id: string } }
 
   async function fetchUsuario() {
     try {
+      console.log('[EditarUsuario] Fetching user:', params.id);
       const response = await fetch(`/api/usuarios/${params.id}`, {
         method: 'GET',
         credentials: 'include',
         cache: 'no-store',
         keepalive: true,
       });
+
+      console.log('[EditarUsuario] Response status:', response.status);
+
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+        console.error('[EditarUsuario] Error response:', errorData);
+
         if (response.status === 401) {
-          setError('Não autenticado');
-          setTimeout(() => router.push('/auth/login'), 100);
+          setError('Sessão expirada. Redirecionando para login...');
+          setTimeout(() => router.push('/auth/login'), 2000);
           return;
         }
         if (response.status === 403) {
-          throw new Error('Não autorizado');
+          setError('Acesso negado: ' + (errorData.error || 'Você não tem permissão para editar usuários'));
+          return;
         }
-        throw new Error('Falha ao carregar usuário');
+        if (response.status === 404) {
+          setError('Usuário não encontrado');
+          return;
+        }
+        setError(errorData.error || 'Falha ao carregar usuário');
+        return;
       }
+
       const data = await response.json();
+      console.log('[EditarUsuario] User loaded successfully:', data.email);
       setUsuario(data);
     } catch (err) {
+      console.error('[EditarUsuario] Unexpected error:', err);
       setError('Erro ao carregar usuário: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
     }
   }
 
   async function handleSubmit(data: any) {
     try {
+      console.log('[EditarUsuario] Submitting:', data);
       const response = await fetch(isNew ? '/api/usuarios' : `/api/usuarios/${params.id}`, {
         method: isNew ? 'POST' : 'PUT',
         headers: {
@@ -61,20 +78,33 @@ export default function EditarUsuarioPage({ params }: { params: { id: string } }
         body: JSON.stringify(data),
       });
 
+      console.log('[EditarUsuario] Submit response status:', response.status);
+
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+        console.error('[EditarUsuario] Submit error:', errorData);
+
         if (response.status === 401) {
-          setError('Não autenticado');
-          setTimeout(() => router.push('/auth/login'), 100);
+          setError('Sessão expirada. Redirecionando para login...');
+          setTimeout(() => router.push('/auth/login'), 2000);
           return;
         }
         if (response.status === 403) {
-          throw new Error('Não autorizado');
+          setError('Acesso negado: ' + (errorData.error || 'Você não tem permissão para editar usuários'));
+          return;
         }
-        throw new Error('Falha ao salvar usuário');
+        if (response.status === 400) {
+          setError(errorData.error || 'Dados inválidos');
+          return;
+        }
+        setError(errorData.error || 'Falha ao salvar usuário');
+        return;
       }
 
+      console.log('[EditarUsuario] User saved successfully, redirecting...');
       router.push('/admin/usuarios');
     } catch (err) {
+      console.error('[EditarUsuario] Unexpected submit error:', err);
       setError('Erro ao salvar usuário: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
     }
   }

@@ -7,16 +7,16 @@ import fs from 'fs'
 // Configuração do dotenv
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
+dotenv.config({ path: path.resolve(__dirname, '..', '.env.local') })
 
 const { Pool } = pg
 
 async function createTables() {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: {
+    ssl: process.env.DATABASE_URL?.includes('supabase') ? {
       rejectUnauthorized: false
-    }
+    } : false
   })
 
   try {

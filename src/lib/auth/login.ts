@@ -124,8 +124,8 @@ export async function performLogin({ email, cpf, mode }: LoginInput): Promise<Lo
 
   // Cria o token JWT
   const token = await createToken({ ...user, categoria });
-  // Usuários "normais" agora vão para o Hub de Reprises; admin mantém fluxo atual
-  const redirectUrl = categoria === 'admin' ? '/admin' : '/hub-reprises';
+  // Redireciona admin para /admin e usuários normais para /transmission
+  const redirectUrl = categoria === 'admin' ? '/admin' : '/transmission';
 
   console.log('[DEBUG] Login bem-sucedido!', {
     userId: user.id,
