@@ -3,11 +3,17 @@ import pg from 'pg';
 
 // Função para criar um cliente PostgreSQL usando DATABASE_URL do .env
 function createPgClient() {
+  // Usa DIRECT_URL se disponível (melhor para Vercel/serverless)
+  // ou DATABASE_URL como fallback
+  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  
   return new pg.Client({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     ssl: {
       rejectUnauthorized: false
-    }
+    },
+    // Timeout de conexão para evitar espera longa
+    connectionTimeoutMillis: 10000,
   });
 }
 
