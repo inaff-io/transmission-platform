@@ -107,8 +107,8 @@ export async function POST(request: NextRequest) {
 
     // Insere nova mensagem (UUID gerado automaticamente)
     const insertResult = await client.query(
-      `INSERT INTO chat (usuario_id, mensagem, updated_at, created_at)
-       VALUES ($1, $2, NOW(), NOW())
+      `INSERT INTO chat (usuario_id, mensagem)
+       VALUES ($1, $2)
        RETURNING id, mensagem, created_at, usuario_id`,
       [payload.userId, message]
     );
@@ -116,8 +116,8 @@ export async function POST(request: NextRequest) {
     const data = insertResult.rows[0];
 
     // Busca dados do usuário para retornar junto com a mensagem
-    let usuarioNome = payload.nome;
-    let usuarioCategoria = payload.categoria;
+    let usuarioNome = payload.nome || 'Usuário';
+    let usuarioCategoria = payload.categoria || 'user';
 
     const usuarioResult = await client.query(
       'SELECT id, nome, categoria FROM usuarios WHERE id = $1',
@@ -140,9 +140,18 @@ export async function POST(request: NextRequest) {
     };
 
     return NextResponse.json({ message: newMessage }, { status: 201 });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Unexpected error in POST /api/chat/messages:', err);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('Error details:', {
+      message: err.message,
+      code: err.code,
+      detail: err.detail,
+      stack: err.stack
+    });
+    return NextResponse.json({ 
+      error: 'Internal Server Error',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    }, { status: 500 });
   } finally {
     await client.end();
   }
