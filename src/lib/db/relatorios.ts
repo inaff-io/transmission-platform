@@ -1,9 +1,9 @@
 import pg from 'pg';
 
-// Função para criar um cliente PostgreSQL usando DATABASE_URL do .env
+// Função para criar um cliente PostgreSQL usando DIRECT_URL (Session Pooler IPv4)
 function createPgClient() {
   return new pg.Client({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
     ssl: {
       rejectUnauthorized: false
     }
