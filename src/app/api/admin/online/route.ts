@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import pkg from 'pg';
+const { Client } = pkg;
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 import { verifyToken } from '@/lib/jwt-server';
-import { createServerClient } from '@/lib/supabase/server';
+import { dbConfig } from '@/lib/db/config';
+
+// Helper para criar cliente PostgreSQL
+function createPgClient() {
+  return new Client(dbConfig);
+}
 
 export async function GET() {
+  const client = createPgClient();
+  
   try {
     const cookieStore = cookies();
     const token = cookieStore.get('authToken')?.value;
@@ -17,30 +26,35 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const supabase = createServerClient();
+    await client.connect();
 
     const now = new Date();
     // Considera online quem teve heartbeat nos últimos 180 segundos (compatível com intervalo de 2 minutos do heartbeat)
-    const limite = new Date(now.getTime() - 180 * 1000).toISOString();
+    const limite = new Date(now.getTime() - 180 * 1000);
 
-    const { data, error } = await supabase
-      .from('usuarios')
-      .select('id, nome, email, last_active')
-      .gte('last_active', limite)
-      .order('last_active', { ascending: false });
+    const result = await client.query(
+      `SELECT id, nome, email, last_active 
+       FROM usuarios 
+       WHERE last_active >= $1 
+       ORDER BY last_active DESC`,
+      [limite]
+    );
 
-    if (error) throw error;
-
-    const users = (data || []).map(u => ({
+    const users = result.rows.map(u => ({
       id: String(u.id),
-      nome: u.nome as string,
-      email: (u.email as string) || '',
-      lastActive: u.last_active as string
+      nome: u.nome,
+      email: u.email || '',
+      lastActive: u.last_active
     }));
 
     return NextResponse.json({ data: users });
   } catch (err) {
     console.error('GET /api/admin/online error:', err);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal Server Error',
+      message: err instanceof Error ? err.message : 'Unknown error'
+    }, { status: 500 });
+  } finally {
+    await client.end();
   }
 }
