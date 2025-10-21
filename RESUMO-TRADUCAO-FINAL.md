@@ -58,16 +58,15 @@ Implementação da **aba de Tradução** com sistema **dinâmico** (link vem do 
 
 **Admin cadastra** (opção simples):
 ```
-https://www.snapsight.com/live-channel/l/93a696ad...
+https://www.snapsight.com/live-channel/l/93a696ad.../embed
 ```
 
 **Sistema converte** automaticamente para:
 ```html
 <iframe 
-  src="https://www.snapsight.com/live-channel/l/93a696ad..." 
+  src="https://www.snapsight.com/live-channel/l/93a696ad.../embed" 
   style="width:100%; height:100%; border:none;" 
-  allow="microphone; camera; autoplay" 
-  sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+  allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
 ></iframe>
 ```
 
@@ -81,7 +80,7 @@ https://www.snapsight.com/live-channel/l/93a696ad...
 2. Ir para `/admin`
 3. **Adicionar Novo Link**:
    - **Tipo**: `traducao`
-   - **URL**: `https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all`
+   - **URL**: `<iframe src="https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed" style="width:100%; height:100%; border:none;" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"></iframe>`
 4. Salvar
 
 ### Opção 2: SQL Direto
@@ -90,7 +89,7 @@ https://www.snapsight.com/live-channel/l/93a696ad...
 INSERT INTO links (tipo, url, ativo_em, atualizado_em) 
 VALUES (
   'traducao',
-  'https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all',
+  '<iframe src="https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed" style="width:100%; height:100%; border:none;" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"></iframe>',
   NOW(),
   NOW()
 );
@@ -100,7 +99,7 @@ VALUES (
 
 `.env.local`:
 ```env
-FALLBACK_TRADUCAO_URL=https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all
+FALLBACK_TRADUCAO_URL=https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed
 ```
 
 ---
@@ -133,18 +132,13 @@ FALLBACK_TRADUCAO_URL=https://www.snapsight.com/live-channel/l/93a696ad-92ee-436
 
 | Permissão | Propósito |
 |-----------|-----------|
-| `microphone` | Acesso ao microfone (se necessário) |
-| `camera` | Acesso à câmera (se necessário) |
-| `autoplay` | Reprodução automática de áudio |
+| `autoplay` | Reprodução automática de áudio/vídeo |
+| `fullscreen` | Modo tela cheia |
+| `picture-in-picture` | Modo picture-in-picture |
+| `clipboard-write` | Copiar para clipboard |
+| `encrypted-media` | Conteúdo criptografado |
 
-### Sandbox
-
-| Restrição | Propósito |
-|-----------|-----------|
-| `allow-same-origin` | Permite funcionamento do Snapsight |
-| `allow-scripts` | Permite execução de JavaScript |
-| `allow-popups` | Permite abrir popups (controles) |
-| `allow-forms` | Permite interação com formulários |
+**Nota**: Removido `sandbox` para melhor compatibilidade com Snapsight.
 
 ---
 

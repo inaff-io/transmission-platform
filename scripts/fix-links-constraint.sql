@@ -35,7 +35,7 @@ ORDER BY conname;
 INSERT INTO links (tipo, url, ativo_em, atualizado_em)
 VALUES (
   'traducao',
-  'https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all',
+  '<iframe src="https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed" style="width:100%; height:100%; border:none;" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"></iframe>',
   NOW(),
   NOW()
 )

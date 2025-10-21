@@ -24,7 +24,7 @@ Na seção de **Gerenciamento de Links**:
 
 #### Opção 1: URL Direta (Recomendado)
 ```
-https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all
+https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed
 ```
 
 > ✅ A plataforma irá **automaticamente** converter para iframe com as configurações corretas
@@ -32,10 +32,9 @@ https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/at
 #### Opção 2: iFrame Completo (Avançado)
 ```html
 <iframe 
-  src="https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all" 
+  src="https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed" 
   style="width:100%; height:100%; border:none;" 
-  allow="microphone; camera; autoplay" 
-  sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+  allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
 ></iframe>
 ```
 
@@ -52,12 +51,12 @@ https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/at
 Quando você insere apenas a **URL** (opção 1), o sistema automaticamente:
 
 ### Converte para iFrame
+
 ```html
 <iframe 
   src="SUA_URL_AQUI" 
   style="width:100%; height:100%; border:none;" 
-  allow="microphone; camera; autoplay" 
-  sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+  allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
 ></iframe>
 ```
 
@@ -65,18 +64,17 @@ Quando você insere apenas a **URL** (opção 1), o sistema automaticamente:
 
 | Permissão | Descrição |
 |-----------|-----------|
-| `microphone` | Acesso ao microfone (se necessário) |
-| `camera` | Acesso à câmera (se necessário) |
-| `autoplay` | Reprodução automática de áudio |
+| `autoplay` | Reprodução automática de áudio/vídeo |
+| `fullscreen` | Permite tela cheia |
+| `picture-in-picture` | Modo picture-in-picture |
+| `clipboard-write` | Permite copiar para clipboard |
+| `encrypted-media` | Suporta conteúdo criptografado |
 
 ### Sandbox (Segurança)
 
-| Restrição | Descrição |
-|-----------|-----------|
-| `allow-same-origin` | Permite funcionamento do Snapsight |
-| `allow-scripts` | Permite execução de JavaScript |
-| `allow-popups` | Permite abrir popups (controles) |
-| `allow-forms` | Permite interação com formulários |
+**Nota**: Removido sandbox para melhor compatibilidade com Snapsight.
+
+O iframe utiliza as permissões `allow` para controlar o acesso a recursos.
 
 ## 📊 Estrutura do Banco de Dados
 
@@ -155,13 +153,13 @@ Se preferir configurar via **variável de ambiente**:
 ### Arquivo `.env` ou `.env.local`
 
 ```env
-FALLBACK_TRADUCAO_URL=https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all
+FALLBACK_TRADUCAO_URL=https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed
 ```
 
 ou
 
 ```env
-NEXT_PUBLIC_FALLBACK_TRADUCAO_URL=https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all
+NEXT_PUBLIC_FALLBACK_TRADUCAO_URL=https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed
 ```
 
 ### Prioridade
@@ -199,14 +197,14 @@ SELECT * FROM links WHERE tipo ILIKE '%trad%';
 INSERT INTO links (tipo, url, ativo_em, atualizado_em) 
 VALUES (
   'traducao',
-  'https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all',
+  '<iframe src="https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed" style="width:100%; height:100%; border:none;" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"></iframe>',
   NOW(),
   NOW()
 );
 
 -- Ou atualizar existente
 UPDATE links 
-SET url = 'https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all',
+SET url = '<iframe src="https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed" style="width:100%; height:100%; border:none;" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"></iframe>',
     atualizado_em = NOW()
 WHERE tipo ILIKE '%trad%';
 ```

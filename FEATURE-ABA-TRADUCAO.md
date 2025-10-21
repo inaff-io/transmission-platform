@@ -70,17 +70,16 @@ setTraducaoLink(data.traducao ?? null);
 Quando você cadastra **apenas a URL** no banco:
 
 ```
-https://www.snapsight.com/live-channel/l/93a696ad...
+https://www.snapsight.com/live-channel/l/93a696ad.../embed
 ```
 
 O sistema **automaticamente converte** para:
 
 ```html
 <iframe 
-  src="https://www.snapsight.com/live-channel/l/93a696ad..." 
+  src="https://www.snapsight.com/live-channel/l/93a696ad.../embed" 
   style="width:100%; height:100%; border:none;" 
-  allow="microphone; camera; autoplay" 
-  sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+  allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
 ></iframe>
 ```
 
@@ -112,14 +111,26 @@ VALUES (
 Arquivo `.env.local`:
 
 ```env
-FALLBACK_TRADUCAO_URL=https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all
+FALLBACK_TRADUCAO_URL=https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed
 ```
 
 **Prioridade**: Banco de Dados > Variável de Ambiente > "Não Disponível"
 
 📖 **Guia Completo**: Veja `COMO-ADICIONAR-TRADUCAO.md` para mais detalhes.
 
-## �🔒 Segurança do iFrame
+##  Permissões do iFrame
+
+O iframe Snapsight utiliza as seguintes permissões via atributo `allow`:
+
+| Permissão | Descrição |
+|-----------|-----------|
+| `autoplay` | Reprodução automática de áudio/vídeo |
+| `fullscreen` | Modo tela cheia |
+| `picture-in-picture` | Modo picture-in-picture |
+| `clipboard-write` | Copiar para clipboard |
+| `encrypted-media` | Conteúdo criptografado |
+
+**Nota**: Removido `sandbox` para melhor compatibilidade com Snapsight.
 
 ### Atributos de Segurança Aplicados
 

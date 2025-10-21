@@ -100,7 +100,7 @@ function pickFromLinks(list: RawLinkRow[] | null | undefined) {
       // Se a URL não é um iframe HTML, converte para iframe
       let url = l.url;
       if (url && !url.trim().startsWith('<iframe') && !url.trim().startsWith('<div')) {
-  url = `<iframe src="${url}" style="width:100%; height:100%; border:none;" allow="microphone; camera; autoplay" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
+  url = `<iframe src="${url}" style="width:100%; height:100%; border:none;" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"></iframe>`;
       }
       const cleanedTraducao = sanitizeIframeHtml(url);
       traducao = { id: l.id, tipo: 'traducao', url: cleanedTraducao ?? url, ativo_em: l.ativo_em, atualizado_em: l.atualizado_em ?? l.ativo_em };

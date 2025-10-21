@@ -28,11 +28,11 @@ async function addTraducaoLink() {
   try {
     console.log('🔗 Conectando ao banco de dados...');
     
-    // URL da tradução Snapsight
-    const traducaoUrl = 'https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all';
+    // URL da tradução Snapsight (com /embed)
+    const traducaoUrl = 'https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all/embed';
     
     // Criar HTML do iframe para tradução
-    const iframeHtml = `<iframe src="${traducaoUrl}" style="width:100%; height:100%; border:none;" allow="microphone; camera; autoplay" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
+    const iframeHtml = `<iframe src="${traducaoUrl}" style="width:100%; height:100%; border:none;" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"></iframe>`;
     
     // Verificar se já existe um link de tradução
     const checkResult = await pool.query(
