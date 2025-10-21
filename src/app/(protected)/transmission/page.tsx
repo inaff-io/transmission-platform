@@ -23,6 +23,7 @@ export default function TransmissionPage() {
   const [user, setUser] = useState<Usuario | null>(null);
   const [currentLink, setCurrentLink] = useState<Link | null>(null);
   const [programacaoLink, setProgramacaoLink] = useState<Link | null>(null);
+  const [traducaoLink, setTraducaoLink] = useState<Link | null>(null);
   const [rightTab, setRightTab] = useState<'programacao' | 'traducao' | 'chat'>('chat');
   const [hasManagedHeader, setHasManagedHeader] = useState(false);
   const [headerChecked, setHeaderChecked] = useState(false);
@@ -59,6 +60,7 @@ export default function TransmissionPage() {
       
       const newTransmissionLink = (data.transmissao as Link) ?? null;
       const newProgramacaoLink = (data.programacao as Link) ?? null;
+      const newTraducaoLink = (data.traducao as Link) ?? null;
 
       const isActive = !!newTransmissionLink?.ativo_em && !!newTransmissionLink?.url;
       const linkChanged = (newTransmissionLink?.url || null) !== (currentLink?.url || null);
@@ -77,6 +79,7 @@ export default function TransmissionPage() {
       
       setCurrentLink(isActive ? newTransmissionLink : null);
       setProgramacaoLink(newProgramacaoLink);
+      setTraducaoLink(newTraducaoLink);
       setLastUpdate(new Date());
     } catch {}
   }, [currentLink?.url]);
@@ -533,15 +536,19 @@ export default function TransmissionPage() {
                     </div>
                   )
                 ) : rightTab === 'traducao' ? (
-                  <div className="absolute inset-0 rounded-lg overflow-hidden shadow bg-white dark:bg-gray-900">
-                    <iframe
-                      src="https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all"
-                      className="w-full h-full border-0"
-                      title="Tradução Simultânea"
-                      allow="microphone; camera; autoplay"
-                      sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                  traducaoLink?.url ? (
+                    <div 
+                      className="absolute inset-0 rounded-lg overflow-hidden shadow bg-white dark:bg-gray-900"
+                      dangerouslySetInnerHTML={{ __html: traducaoLink.url }}
                     />
-                  </div>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+                      <div className="text-center">
+                        <div className="text-4xl mb-3 opacity-50">🌐</div>
+                        <p className="text-gray-500 dark:text-gray-400 font-medium">Tradução não disponível</p>
+                      </div>
+                    </div>
+                  )
                 ) : (
                   <div className="absolute inset-0 flex flex-col">
                     {((user?.categoria || '').toLowerCase() === 'admin') && (

@@ -17,10 +17,10 @@ function createPgClient() {
   });
 }
 
-interface PublicLink { id: string; tipo: 'transmissao' | 'programacao'; url: string; ativo_em: string; atualizado_em: string; }
+interface PublicLink { id: string; tipo: 'transmissao' | 'programacao' | 'traducao'; url: string; ativo_em: string; atualizado_em: string; }
 interface ProgramacaoRow { id: string; titulo: string; url_iframe: string; ordem: number; created_at: string; updated_at: string }
 
-const mapProgramacao = (r: ProgramacaoRow, tipo: 'transmissao' | 'programacao'): PublicLink => ({
+const mapProgramacao = (r: ProgramacaoRow, tipo: 'transmissao' | 'programacao' | 'traducao'): PublicLink => ({
   id: r.id,
   tipo,
   url: sanitizeIframeHtml(r.url_iframe) ?? r.url_iframe,
@@ -60,7 +60,7 @@ function sanitizeIframeHtml(html: string | undefined | null): string | undefined
   return html.replace(/\sallowfullscreen(?:\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]+))?/gi, '');
 }
 
-function normalizeTipo(raw: string | undefined | null): 'transmissao' | 'programacao' | null {
+function normalizeTipo(raw: string | undefined | null): 'transmissao' | 'programacao' | 'traducao' | null {
   if (!raw) return null;
   const t = raw
     .toString()
@@ -70,14 +70,17 @@ function normalizeTipo(raw: string | undefined | null): 'transmissao' | 'program
     .trim();
   if (t.startsWith('trans')) return 'transmissao';
   if (t.startsWith('progr')) return 'programacao';
+  if (t.startsWith('trad')) return 'traducao';
   if (t === 'programacao') return 'programacao';
   if (t === 'transmissao') return 'transmissao';
+  if (t === 'traducao') return 'traducao';
   return null;
 }
 
 function pickFromLinks(list: RawLinkRow[] | null | undefined) {
   let transmissao: PublicLink | null = null;
   let programacao: PublicLink | null = null;
+  let traducao: PublicLink | null = null;
   list?.forEach(l => {
     const kind = normalizeTipo(l.tipo);
     if (!transmissao && kind === 'transmissao') {
@@ -93,14 +96,23 @@ function pickFromLinks(list: RawLinkRow[] | null | undefined) {
       const cleanedProgramacao = sanitizeIframeHtml(url);
       programacao = { id: l.id, tipo: 'programacao', url: cleanedProgramacao ?? url, ativo_em: l.ativo_em, atualizado_em: l.atualizado_em ?? l.ativo_em };
     }
+    if (!traducao && kind === 'traducao') {
+      // Se a URL não é um iframe HTML, converte para iframe
+      let url = l.url;
+      if (url && !url.trim().startsWith('<iframe') && !url.trim().startsWith('<div')) {
+  url = `<iframe src="${url}" style="width:100%; height:100%; border:none;" allow="microphone; camera; autoplay" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>`;
+      }
+      const cleanedTraducao = sanitizeIframeHtml(url);
+      traducao = { id: l.id, tipo: 'traducao', url: cleanedTraducao ?? url, ativo_em: l.ativo_em, atualizado_em: l.atualizado_em ?? l.ativo_em };
+    }
   });
-  return { transmissao, programacao };
+  return { transmissao, programacao, traducao };
 }
 
-function fallbackFromProgramacoes(rows: ProgramacaoRow[] | null | undefined, existing: { transmissao: PublicLink | null; programacao: PublicLink | null }) {
+function fallbackFromProgramacoes(rows: ProgramacaoRow[] | null | undefined, existing: { transmissao: PublicLink | null; programacao: PublicLink | null; traducao: PublicLink | null }) {
   let source: 'links' | 'programacoes' | 'mixed' = 'links';
-  let { transmissao, programacao } = existing;
-  if (!rows) return { transmissao, programacao, source };
+  let { transmissao, programacao, traducao } = existing;
+  if (!rows) return { transmissao, programacao, traducao, source };
   const list = rows.slice();
   // Preferências por título quando disponíveis
   if (!transmissao) {
@@ -118,7 +130,15 @@ function fallbackFromProgramacoes(rows: ProgramacaoRow[] | null | undefined, exi
       else if (source === 'links') source = 'programacoes';
     }
   }
-  return { transmissao, programacao, source };
+  if (!traducao) {
+    const trad = list.find(r => r.titulo?.toLowerCase().startsWith('trad')) || list.find(r => (!transmissao || r.id !== transmissao.id) && (!programacao || r.id !== programacao.id));
+    if (trad) {
+      traducao = mapProgramacao(trad, 'traducao');
+      if ((transmissao && !existing.transmissao) || (programacao && !existing.programacao)) source = 'mixed';
+      else if (source === 'links') source = 'programacoes';
+    }
+  }
+  return { transmissao, programacao, traducao, source };
 }
 
 // Normalize certain programacao URLs to their embeddable variant
@@ -179,6 +199,7 @@ export async function GET() {
       const envs = process.env as Record<string, string | undefined>;
       const envTrans = envs.NEXT_PUBLIC_FALLBACK_TRANSMISSAO_URL || envs.FALLBACK_TRANSMISSAO_URL || '';
       const envProg = envs.NEXT_PUBLIC_FALLBACK_PROGRAMACAO_URL || envs.FALLBACK_PROGRAMACAO_URL || '';
+      const envTrad = envs.NEXT_PUBLIC_FALLBACK_TRADUCAO_URL || envs.FALLBACK_TRADUCAO_URL || '';
       if (!fb.transmissao && envTrans) {
         fb.transmissao = { id: 'env-trans', tipo: 'transmissao', url: envTrans, ativo_em: new Date().toISOString(), atualizado_em: new Date().toISOString() };
         fb.source = fb.programacao ? 'mixed' : 'programacoes';
@@ -188,6 +209,10 @@ export async function GET() {
         fb.programacao = { id: 'env-prog', tipo: 'programacao', url: normalizedEnv, ativo_em: new Date().toISOString(), atualizado_em: new Date().toISOString() };
         fb.source = fb.transmissao ? 'mixed' : 'programacoes';
       }
+      if (!fb.traducao && envTrad) {
+        fb.traducao = { id: 'env-trad', tipo: 'traducao', url: envTrad, ativo_em: new Date().toISOString(), atualizado_em: new Date().toISOString() };
+        fb.source = fb.transmissao || fb.programacao ? 'mixed' : 'programacoes';
+      }
     }
     if (picked.transmissao !== fb.transmissao || picked.programacao !== fb.programacao) {
       if (picked.transmissao && picked.programacao) source = 'links';
@@ -195,18 +220,21 @@ export async function GET() {
     }
       const transmissaoSanitized = sanitizeLink(fb.transmissao);
       const programacaoSanitized = sanitizeLink(fb.programacao);
-      return NextResponse.json({ transmissao: transmissaoSanitized, programacao: programacaoSanitized, source });
+      const traducaoSanitized = sanitizeLink(fb.traducao);
+      return NextResponse.json({ transmissao: transmissaoSanitized, programacao: programacaoSanitized, traducao: traducaoSanitized, source });
   } catch (err) {
     console.error('GET /api/links/active error:', err);
     // Último fallback: responder com ENV para evitar UI vazia
     const envs = process.env as Record<string, string | undefined>;
     const envTrans = envs.NEXT_PUBLIC_FALLBACK_TRANSMISSAO_URL || envs.FALLBACK_TRANSMISAO_URL || envs.FALLBACK_TRANSMISSAO || '';
     const envProg = envs.NEXT_PUBLIC_FALLBACK_PROGRAMACAO_URL || envs.FALLBACK_PROGRAMACAO_URL || envs.FALLBACK_PROGRAMACAO || '';
+    const envTrad = envs.NEXT_PUBLIC_FALLBACK_TRADUCAO_URL || envs.FALLBACK_TRADUCAO_URL || envs.FALLBACK_TRADUCAO || '';
     const now = new Date().toISOString();
     const transmissao = envTrans ? sanitizeLink({ id: 'env-trans', tipo: 'transmissao', url: envTrans, ativo_em: now, atualizado_em: now }) : null;
     const programacaoUrl = ensureProgramacaoEmbed(envProg) || envProg;
     const programacao = envProg ? sanitizeLink({ id: 'env-prog', tipo: 'programacao', url: programacaoUrl, ativo_em: now, atualizado_em: now }) : null;
-    return NextResponse.json({ transmissao, programacao, source: 'env' }, { status: 200 });
+    const traducao = envTrad ? sanitizeLink({ id: 'env-trad', tipo: 'traducao', url: envTrad, ativo_em: now, atualizado_em: now }) : null;
+    return NextResponse.json({ transmissao, programacao, traducao, source: 'env' }, { status: 200 });
   } finally {
     await client.end();
   }
