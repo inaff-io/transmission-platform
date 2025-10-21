@@ -47,8 +47,8 @@ export async function GET(request: Request) {
       SELECT 
         l.id,
         l.usuario_id,
-        l.login_em,
-        l.logout_em,
+        l.login_em AT TIME ZONE 'America/Sao_Paulo' as login_em,
+        l.logout_em AT TIME ZONE 'America/Sao_Paulo' as logout_em,
         l.tempo_logado,
         l.ip,
         l.navegador,
@@ -115,13 +115,59 @@ export async function GET(request: Request) {
       }
     }));
 
+    // Consolida estatísticas por usuário
+    const userStats = new Map<string, {
+      usuario_id: string;
+      nome: string;
+      email: string;
+      total_logins: number;
+      ultimo_login: string;
+      primeiro_login: string;
+      tempo_total_logado: number;
+    }>();
+
+    for (const row of formattedData) {
+      if (!row.usuario_id) continue;
+
+      const existing = userStats.get(row.usuario_id);
+      
+      if (!existing) {
+        userStats.set(row.usuario_id, {
+          usuario_id: row.usuario_id,
+          nome: row.usuarios.nome,
+          email: row.usuarios.email,
+          total_logins: 1,
+          ultimo_login: row.login_em,
+          primeiro_login: row.login_em,
+          tempo_total_logado: row.tempo_logado || 0
+        });
+      } else {
+        existing.total_logins++;
+        existing.tempo_total_logado += row.tempo_logado || 0;
+        
+        // Atualiza primeiro/último login
+        if (new Date(row.login_em) > new Date(existing.ultimo_login)) {
+          existing.ultimo_login = row.login_em;
+        }
+        if (new Date(row.login_em) < new Date(existing.primeiro_login)) {
+          existing.primeiro_login = row.login_em;
+        }
+      }
+    }
+
+    const consolidado = Array.from(userStats.values())
+      .sort((a, b) => b.total_logins - a.total_logins); // Ordena por quantidade de logins
+
     // Adiciona informações de debug no response
     return NextResponse.json({
       data: formattedData,
+      consolidado,
       debug: {
         startDate: startDateStr,
         endDate: endDateStr,
-        totalRecords: formattedData.length
+        totalRecords: formattedData.length,
+        totalUsuarios: consolidado.length,
+        timezone: 'America/Sao_Paulo'
       }
     });
   } catch (err) {
