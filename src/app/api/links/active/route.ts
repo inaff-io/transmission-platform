@@ -221,7 +221,15 @@ export async function GET() {
       const transmissaoSanitized = sanitizeLink(fb.transmissao);
       const programacaoSanitized = sanitizeLink(fb.programacao);
       const traducaoSanitized = sanitizeLink(fb.traducao);
-      return NextResponse.json({ transmissao: transmissaoSanitized, programacao: programacaoSanitized, traducao: traducaoSanitized, source });
+      
+      const response = NextResponse.json({ transmissao: transmissaoSanitized, programacao: programacaoSanitized, traducao: traducaoSanitized, source });
+      
+      // Headers para desabilitar cache completamente
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      response.headers.set('Pragma', 'no-cache');
+      response.headers.set('Expires', '0');
+      
+      return response;
   } catch (err) {
     console.error('GET /api/links/active error:', err);
     // Último fallback: responder com ENV para evitar UI vazia
@@ -234,7 +242,15 @@ export async function GET() {
     const programacaoUrl = ensureProgramacaoEmbed(envProg) || envProg;
     const programacao = envProg ? sanitizeLink({ id: 'env-prog', tipo: 'programacao', url: programacaoUrl, ativo_em: now, atualizado_em: now }) : null;
     const traducao = envTrad ? sanitizeLink({ id: 'env-trad', tipo: 'traducao', url: envTrad, ativo_em: now, atualizado_em: now }) : null;
-    return NextResponse.json({ transmissao, programacao, traducao, source: 'env' }, { status: 200 });
+    
+    const errorResponse = NextResponse.json({ transmissao, programacao, traducao, source: 'env' }, { status: 200 });
+    
+    // Headers para desabilitar cache completamente (também no erro)
+    errorResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    errorResponse.headers.set('Pragma', 'no-cache');
+    errorResponse.headers.set('Expires', '0');
+    
+    return errorResponse;
   } finally {
     await client.end();
   }

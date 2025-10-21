@@ -248,12 +248,11 @@ export default function TransmissionPage() {
   }, [handleLogout, refreshLinks]);
 
   useEffect(() => {
-    // Auto-refresh desabilitado para evitar recarregamentos constantes
-    // Se precisar atualizar, use o botão de refresh manual
-    // const interval = setInterval(() => {
-    //   refreshLinks();
-    // }, 30000);
-    // return () => clearInterval(interval);
+    // Auto-refresh a cada 30 segundos para pegar mudanças do admin
+    const interval = setInterval(() => {
+      refreshLinks();
+    }, 30000); // 30 segundos
+    return () => clearInterval(interval);
   }, [refreshLinks]);
 
   useEffect(() => {
