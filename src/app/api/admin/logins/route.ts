@@ -1,24 +1,44 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import pkg from 'pg';
+const { Client } = pkg;
+import { dbConfig } from '@/lib/db/config';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 import { verifyToken } from '@/lib/jwt-server';
-import { createServerClient } from '@/lib/supabase/server';
 
+function createPgClient() {
+  return new Client(dbConfig);
+}
+
+/**
+ * API para Relatório de Logins (Admin)
+ * GET /api/admin/logins
+ * 
+ * Retorna estatísticas de logins e logouts do dia
+ * MIGRADO: Agora usa PostgreSQL direto (sem Supabase Client)
+ */
 export async function GET() {
+  const client = createPgClient();
+
   try {
+    await client.connect();
+
     const cookieStore = cookies();
     const token = cookieStore.get('authToken')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const payload = await verifyToken(token);
+    
     if (payload.categoria.toLowerCase() !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const supabase = createServerClient();
-
+    // Define início e fim do dia
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
@@ -28,31 +48,30 @@ export async function GET() {
     const endISO = endOfDay.toISOString();
 
     // Contar logins de hoje
-    const { count: loginsHoje, error: loginsError } = await supabase
-      .from('logins')
-      .select('id', { count: 'exact', head: true })
-      .gte('login_em', startISO)
-      .lte('login_em', endISO);
-
-    if (loginsError) throw loginsError;
+    const loginsResult = await client.query(
+      'SELECT COUNT(*) as count FROM logins WHERE login_em >= $1 AND login_em <= $2',
+      [startISO, endISO]
+    );
 
     // Contar logouts de hoje
-    const { count: logoutsHoje, error: logoutsError } = await supabase
-      .from('logins')
-      .select('id', { count: 'exact', head: true })
-      .gte('logout_em', startISO)
-      .lte('logout_em', endISO);
+    const logoutsResult = await client.query(
+      'SELECT COUNT(*) as count FROM logins WHERE logout_em >= $1 AND logout_em <= $2',
+      [startISO, endISO]
+    );
 
-    if (logoutsError) throw logoutsError;
+    const loginsHoje = parseInt(loginsResult.rows[0].count, 10) || 0;
+    const logoutsHoje = parseInt(logoutsResult.rows[0].count, 10) || 0;
 
     return NextResponse.json({ 
       data: { 
-        loginsHoje: loginsHoje || 0,
-        logoutsHoje: logoutsHoje || 0
+        loginsHoje,
+        logoutsHoje
       } 
     });
   } catch (err) {
     console.error('GET /api/admin/logins error:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } finally {
+    await client.end();
   }
 }

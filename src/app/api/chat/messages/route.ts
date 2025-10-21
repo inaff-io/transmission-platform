@@ -1,50 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/jwt-server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { createServerClient } from '@/lib/supabase/server';
-import { randomUUID } from 'crypto';
+import pkg from 'pg';
+const { Client } = pkg;
+import { dbConfig } from '@/lib/db/config';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+function createPgClient() {
+  return new Client(dbConfig);
+}
+
+/**
+ * API de Mensagens do Chat
+ * GET: Buscar mensagens (últimas 100)
+ * POST: Criar nova mensagem
+ * DELETE: Limpar todas mensagens (admin only)
+ * MIGRADO: Agora usa PostgreSQL direto (sem Supabase Client)
+ */
+
 export async function GET(request: NextRequest) {
+  const client = createPgClient();
+
   try {
+    await client.connect();
+
     const cookieStore = cookies();
     const token = cookieStore.get('authToken')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const payload = await verifyToken(token);
-
-    const supabase = createAdminClient();
-    // Busca últimas 100 mensagens sem depender de relacionamento implícito
-    const { data, error } = await supabase
-      .from('chat')
-      .select('id, mensagem, created_at, usuario_id')
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (error) {
-      console.error('GET /api/chat/messages error:', error);
-      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const rows = data || [];
+    const payload = await verifyToken(token);
+
+    // Busca últimas 100 mensagens
+    const result = await client.query(
+      'SELECT id, mensagem, created_at, usuario_id FROM chat ORDER BY created_at DESC LIMIT 100'
+    );
+
+    const rows = result.rows || [];
     const userIds = Array.from(new Set(rows.map((r: any) => r.usuario_id).filter(Boolean)));
 
     let usersMap: Record<string, { id: string; nome: string; categoria: string }> = {};
+    
     if (userIds.length > 0) {
-      const { data: users, error: usersError } = await supabase
-        .from('usuarios')
-        .select('id, nome, categoria')
-        .in('id', userIds);
-      if (usersError) {
-        console.error('GET /api/chat/messages usuarios fetch error:', usersError);
-      } else {
-        usersMap = (users || []).reduce((acc: Record<string, any>, u: any) => {
-          acc[u.id] = { id: u.id, nome: u.nome, categoria: u.categoria };
-          return acc;
-        }, {});
-      }
+      const placeholders = userIds.map((_, i) => `$${i + 1}`).join(',');
+      const usersResult = await client.query(
+        `SELECT id, nome, categoria FROM usuarios WHERE id IN (${placeholders})`,
+        userIds
+      );
+      
+      usersMap = (usersResult.rows || []).reduce((acc: Record<string, any>, u: any) => {
+        acc[u.id] = { id: u.id, nome: u.nome, categoria: u.categoria };
+        return acc;
+      }, {});
     }
 
     const messages = rows.map((row: any) => {
@@ -63,47 +74,58 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error('Unexpected error in GET /api/chat/messages:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } finally {
+    await client.end();
   }
 }
 
 export async function POST(request: NextRequest) {
+  const client = createPgClient();
+
   try {
+    await client.connect();
+
     const cookieStore = cookies();
     const token = cookieStore.get('authToken')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const payload = await verifyToken(token);
 
     const body = await request.json();
     const message: string = (body?.message || '').toString().trim();
+    
     if (!message) {
       return NextResponse.json({ error: 'Mensagem vazia' }, { status: 400 });
     }
+    
     if (message.length > 500) {
       return NextResponse.json({ error: 'Mensagem muito longa (max 500)' }, { status: 400 });
     }
 
-    const supabase = createAdminClient();
-    const newId = randomUUID();
-    const { data, error } = await supabase
-      .from('chat')
-      .insert({ id: newId, usuario_id: payload.userId, mensagem: message, updated_at: new Date().toISOString() })
-      .select('id, mensagem, created_at, usuario_id')
-      .single();
+    // Insere nova mensagem (UUID gerado automaticamente)
+    const insertResult = await client.query(
+      `INSERT INTO chat (usuario_id, mensagem, updated_at, created_at)
+       VALUES ($1, $2, NOW(), NOW())
+       RETURNING id, mensagem, created_at, usuario_id`,
+      [payload.userId, message]
+    );
 
-    if (error) {
-      console.error('POST /api/chat/messages error:', error);
-      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-    }
+    const data = insertResult.rows[0];
 
     // Busca dados do usuário para retornar junto com a mensagem
     let usuarioNome = payload.nome;
     let usuarioCategoria = payload.categoria;
-    const { data: usuarioData, error: usuarioError } = await supabase
-      .from('usuarios')
-      .select('id, nome, categoria')
-      .eq('id', payload.userId)
-      .single();
-    if (!usuarioError && usuarioData) {
+
+    const usuarioResult = await client.query(
+      'SELECT id, nome, categoria FROM usuarios WHERE id = $1',
+      [payload.userId]
+    );
+
+    if (usuarioResult.rows.length > 0) {
+      const usuarioData = usuarioResult.rows[0];
       usuarioNome = usuarioData.nome || usuarioNome;
       usuarioCategoria = usuarioData.categoria || usuarioCategoria;
     }
@@ -121,14 +143,24 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error('Unexpected error in POST /api/chat/messages:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } finally {
+    await client.end();
   }
 }
 
 export async function DELETE(request: NextRequest) {
+  const client = createPgClient();
+
   try {
+    await client.connect();
+
     const cookieStore = cookies();
     const token = cookieStore.get('authToken')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const payload = await verifyToken(token);
     
     // Somente administradores podem limpar o chat
@@ -136,23 +168,18 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const supabase = createAdminClient();
-    // Deleta todas as mensagens (usa filtro amplo para evitar necessidade de TRUNCATE)
-    const { data, error } = await supabase
-      .from('chat')
-      .delete()
-      .not('id', 'is', null)
-      .select('id');
+    // Deleta todas as mensagens
+    const deleteResult = await client.query(
+      'DELETE FROM chat RETURNING id'
+    );
 
-    if (error) {
-      console.error('DELETE /api/chat/messages error:', error);
-      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-    }
-
-    const deletedCount = Array.isArray(data) ? data.length : 0;
+    const deletedCount = deleteResult.rowCount || 0;
+    
     return NextResponse.json({ success: true, deleted: deletedCount });
   } catch (err) {
     console.error('Unexpected error in DELETE /api/chat/messages:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } finally {
+    await client.end();
   }
 }

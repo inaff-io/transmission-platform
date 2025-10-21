@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import pkg from 'pg';
+const { Client } = pkg;
+import { dbConfig } from '@/lib/db/config';
+
+function createPgClient() {
+  return new Client(dbConfig);
+}
 
 /**
  * API Pública para Inscrição de Novos Usuários
  * POST /api/inscricao
  * 
  * Não requer autenticação - permite que qualquer pessoa se inscreva no evento
+ * MIGRADO: Agora usa PostgreSQL direto (sem Supabase Client)
  */
 export async function POST(request: NextRequest) {
+  const client = createPgClient();
+
   try {
+    await client.connect();
+
     const body = await request.json();
     const { nome, email, cpf } = body;
 
@@ -48,24 +59,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createServerClient();
-
     // Verifica se já existe usuário com este email ou CPF
-    const { data: existingUser, error: checkError } = await supabase
-      .from('usuarios')
-      .select('id, email, cpf')
-      .or(`email.eq.${email.toLowerCase()},cpf.eq.${cpfLimpo}`)
-      .maybeSingle();
+    const checkResult = await client.query(
+      'SELECT id, email, cpf FROM usuarios WHERE email = $1 OR cpf = $2',
+      [email.toLowerCase(), cpfLimpo]
+    );
 
-    if (checkError) {
-      console.error('[POST /api/inscricao] Erro ao verificar duplicatas:', checkError);
-      return NextResponse.json(
-        { error: 'Erro ao verificar dados' },
-        { status: 500 }
-      );
-    }
-
-    if (existingUser) {
+    if (checkResult.rows.length > 0) {
+      const existingUser = checkResult.rows[0];
+      
       if (existingUser.email === email.toLowerCase()) {
         return NextResponse.json(
           { error: 'Email já cadastrado' },
@@ -80,88 +82,46 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Gera ID único a partir do email
-    const userId = email
-      .split('@')[0]
-      .toLowerCase()
-      .replaceAll(/[^a-z0-9]/g, '_');
+    console.log('[POST /api/inscricao] Criando usuário (UUID automático)');
 
-    console.log('[POST /api/inscricao] Criando usuário:', userId);
+    // Cria novo usuário (UUID gerado automaticamente pelo banco)
+    const insertResult = await client.query(
+      `INSERT INTO usuarios (nome, email, cpf, categoria, status, ativo, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+       RETURNING *`,
+      [
+        nome.trim(),
+        email.toLowerCase().trim(),
+        cpfLimpo,
+        'user', // Sempre usuário normal em inscrições públicas
+        true,
+        true
+      ]
+    );
 
-    // Cria novo usuário
-    const { data: newUser, error: insertError } = await supabase
-      .from('usuarios')
-      .insert({
-        id: userId,
-        nome: nome.trim(),
-        email: email.toLowerCase().trim(),
-        cpf: cpfLimpo,
-        categoria: 'user', // Sempre usuário normal em inscrições públicas
-        status: true,
-        ativo: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('[POST /api/inscricao] Erro ao criar usuário:', insertError);
-      
-      // Verifica se é erro de duplicata (pode ocorrer se ID gerado já existe)
-      if (insertError.code === '23505') {
-        // Gera ID alternativo adicionando timestamp
-        const alternativeId = `${userId}_${Date.now().toString().slice(-6)}`;
-        console.log('[POST /api/inscricao] Tentando ID alternativo:', alternativeId);
-        
-        const { data: retryUser, error: retryError } = await supabase
-          .from('usuarios')
-          .insert({
-            id: alternativeId,
-            nome: nome.trim(),
-            email: email.toLowerCase().trim(),
-            cpf: cpfLimpo,
-            categoria: 'user',
-            status: true,
-            ativo: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (retryError) {
-          console.error('[POST /api/inscricao] Erro na segunda tentativa:', retryError);
-          return NextResponse.json(
-            { error: 'Erro ao criar inscrição. Tente novamente.' },
-            { status: 500 }
-          );
-        }
-
-        console.log('[POST /api/inscricao] Usuário criado com sucesso (ID alternativo):', alternativeId);
-        return NextResponse.json({
-          message: 'Inscrição realizada com sucesso',
-          userId: retryUser.id,
-        });
-      }
-
-      return NextResponse.json(
-        { error: 'Erro ao criar inscrição' },
-        { status: 500 }
-      );
-    }
-
+    const newUser = insertResult.rows[0];
     console.log('[POST /api/inscricao] Inscrição criada com sucesso:', newUser.id);
 
     return NextResponse.json({
       message: 'Inscrição realizada com sucesso',
       userId: newUser.id,
     });
-  } catch (error) {
-    console.error('[POST /api/inscricao] Erro geral:', error);
+  } catch (error: any) {
+    console.error('[POST /api/inscricao] Erro:', error);
+
+    // Verifica se é erro de duplicata do PostgreSQL
+    if (error.code === '23505') {
+      return NextResponse.json(
+        { error: 'Email ou CPF já cadastrado' },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Erro ao processar inscrição' },
       { status: 500 }
     );
+  } finally {
+    await client.end();
   }
 }
