@@ -21,6 +21,7 @@ create table if not exists usuarios (
     email text unique not null,
     cpf text unique not null,
     status boolean default true,
+    ativo boolean not null default true,
     last_active timestamp,
     created_at timestamp default now(),
     updated_at timestamp default now()
