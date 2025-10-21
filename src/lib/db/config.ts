@@ -1,7 +1,9 @@
-// Use DIRECT_URL (Session Pooler IPv4) para evitar erro IPv6
-// Fallback para DATABASE_URL se DIRECT_URL não estiver definido
 export const dbConfig = {
-  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+  user: 'postgres.ywcmqgfbxrejuwcbeolu',
+  password: 'OMSmx9QqbMq4OXun',
+  host: 'aws-1-sa-east-1.pooler.supabase.com',
+  port: 6543,
+  database: 'postgres',
   ssl: {
     rejectUnauthorized: false
   }
