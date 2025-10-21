@@ -7,16 +7,22 @@
 
 import pg from 'pg';
 
-const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+const connectionString = process.env.DIRECT_URL || 
+                        process.env.DATABASE_URL || 
+                        'postgresql://postgres:postgres@localhost:5432/postgres';
 
 console.log('╔════════════════════════════════════════════════╗');
 console.log('║   LIMPEZA DE DADOS DE TESTE - SAFE DELETE     ║');
 console.log('╚════════════════════════════════════════════════╝\n');
 
 async function cleanupTestData() {
-  const client = new pg.Client({
+  // Detecta se é localhost para não usar SSL
+  const isLocalhost = connectionString.includes('localhost') || connectionString.includes('127.0.0.1');
+  
+  const { Client } = pg;
+  const client = new Client({
     connectionString,
-    ssl: {
+    ssl: isLocalhost ? false : {
       rejectUnauthorized: false
     }
   });

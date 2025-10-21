@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     const headers = new Headers(request.headers);
     const ip = headers.get('x-forwarded-for')?.split(',')[0].trim() || headers.get('x-real-ip') || 'unknown';
     const key = `login-admin:${ip}`;
-    const { allowed, info } = rateLimit(key, 5, 60_000);
+    const { allowed, info } = rateLimit(key, 100, 60_000); // Aumentado de 5 para 100 tentativas/minuto
     if (!allowed) {
       const resp = NextResponse.json({ error: 'Muitas tentativas de login de administrador. Aguarde e tente novamente.' }, { status: 429 });
       const rlHeaders = buildRateLimitHeaders(info);

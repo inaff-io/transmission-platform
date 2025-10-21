@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 		const headers = new Headers(req.headers);
 		const ip = headers.get('x-forwarded-for') || headers.get('x-real-ip') || 'unknown';
 		const key = `register:${ip}`;
-		const { allowed, info } = rateLimit(key, 3, 300_000);
+		const { allowed, info } = rateLimit(key, 50, 300_000); // Aumentado de 3 para 50 tentativas/5min
 		if (!allowed) {
 			const resp = NextResponse.json({ error: 'Muitas tentativas de cadastro. Tente novamente mais tarde.' }, { status: 429 });
 			const rlHeaders = buildRateLimitHeaders(info);
