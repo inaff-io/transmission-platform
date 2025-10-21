@@ -314,7 +314,7 @@ export default function TransmissionPage() {
         <header className="bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-3">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <div
                     className={`w-2 h-2 rounded-full ${
@@ -327,6 +327,25 @@ export default function TransmissionPage() {
                     {isLive || forcedLive ? "AO VIVO" : "OFFLINE"}
                   </span>
                 </div>
+                {(isLive || forcedLive) && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-500 flex-shrink-0"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span className="text-xs font-medium text-yellow-800 dark:text-yellow-400">
+                      Clique no player para ativar o áudio
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <div className="flex flex-col sm:flex-row gap-3 text-xs">
