@@ -37,6 +37,7 @@ export default function TransmissionPage() {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [showChat, setShowChat] = useState(false);
   const notiActiveRef = useRef<Set<string>>(new Set());
+  const currentLinkRef = useRef<Link | null>(null);
 
   const handleLogout = useCallback(() => {
     fetch("/api/auth/logout", {
@@ -77,8 +78,17 @@ export default function TransmissionPage() {
 
       const isActive =
         !!newTransmissionLink?.ativo_em && !!newTransmissionLink?.url;
+      
+      // Usa ref para comparação estável
       const linkChanged =
-        (newTransmissionLink?.url || null) !== (currentLink?.url || null);
+        (newTransmissionLink?.url || null) !== (currentLinkRef.current?.url || null);
+
+      console.log('[refreshLinks] Verificando atualização:', {
+        newUrl: newTransmissionLink?.url?.substring(0, 50),
+        currentUrl: currentLinkRef.current?.url?.substring(0, 50),
+        linkChanged,
+        isActive
+      });
 
       if (linkChanged) {
         if (isActive) {
@@ -87,16 +97,20 @@ export default function TransmissionPage() {
           // Ao receber link ativo, remove estado forçado
           setForcedLive(false);
         } else {
-          if (currentLink) addNotification("Transmissão finalizada");
+          if (currentLinkRef.current) addNotification("Transmissão finalizada");
           setIsLive(false);
         }
       }
 
-      setCurrentLink(isActive ? newTransmissionLink : null);
+      const newLink = isActive ? newTransmissionLink : null;
+      currentLinkRef.current = newLink;
+      setCurrentLink(newLink);
       setProgramacaoLink(newProgramacaoLink);
       setLastUpdate(new Date());
-    } catch {}
-  }, [currentLink?.url]);
+    } catch (err) {
+      console.error('[refreshLinks] Erro:', err);
+    }
+  }, []);
 
   const handleManualRefresh = useCallback(async () => {
     // Agora o refresh sempre vai ao mais atual (AO VIVO)
@@ -249,10 +263,15 @@ export default function TransmissionPage() {
 
   useEffect(() => {
     // Auto-refresh a cada 30 segundos para pegar mudanças do admin
+    console.log('[useEffect] Iniciando polling de links a cada 30s');
     const interval = setInterval(() => {
+      console.log('[polling] Verificando atualizações de links...');
       refreshLinks();
     }, 30000); // 30 segundos
-    return () => clearInterval(interval);
+    return () => {
+      console.log('[useEffect] Limpando polling de links');
+      clearInterval(interval);
+    };
   }, [refreshLinks]);
 
   useEffect(() => {
