@@ -5,7 +5,11 @@
  */
 
 import dotenv from 'dotenv';
-import { createClient } from '@supabase/supabase-js';
+import fetch from 'node-fetch';
+import jwt from 'jsonwebtoken';
+import pg from 'pg';
+
+const { Pool } = pg;
 
 // Configurar dotenv
 dotenv.config({ path: '.env.local' });
@@ -15,32 +19,25 @@ async function testImportExcel() {
   console.log('║         TESTE: Importação de Excel - Usuários                 ║');
   console.log('╚════════════════════════════════════════════════════════════════╝\n');
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ Credenciais do Supabase não configuradas!');
-    process.exit(1);
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
 
   // Dados de teste (simulando planilha Excel)
   const testData = [
     {
-      nome: 'João da Silva',
+      nome: 'João da Silva Teste',
       email: 'joao.teste@example.com',
       cpf: '12345678901',
       categoria: 'user'
     },
     {
-      nome: 'Maria Santos',
+      nome: 'Maria Santos Teste',
       email: 'maria.teste@example.com',
       cpf: '98765432100',
       categoria: 'admin'
     },
     {
-      nome: 'Pedro Costa',
+      nome: 'Pedro Costa Teste',
       email: 'pedro.teste@example.com',
       cpf: '11122233344'
       // categoria omitida (deve usar padrão 'user')

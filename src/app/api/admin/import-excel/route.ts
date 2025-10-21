@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyToken } from '@/lib/jwt-server';
+import pg from 'pg';
+
+const { Pool } = pg;
+
+// Pool compartilhado para reutilizar conexões
+const pool = new Pool({
+  connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  },
+  connectionTimeoutMillis: 10000,
+  max: 20,
+});
 
 interface UserData {
   nome: string;
@@ -78,50 +90,9 @@ const toStringValue = (value: unknown) =>
     ? String(value).trim()
     : '';
 
-/**
- * Gera um ID único baseado no email do usuário
- * Adiciona sufixo numérico se ID já existir
- */
-async function generateUniqueUserId(
-  supabase: ReturnType<typeof createAdminClient>,
-  email: string,
-  nome: string
-): Promise<string | null> {
-  // Tenta usar parte do email como ID base
-  let baseId = email.split('@')[0].toLowerCase().replaceAll(/[^a-z0-9]/g, '_');
-  
-  // Se o ID base estiver vazio, usa parte do nome
-  if (!baseId || baseId.length < 3) {
-    baseId = nome
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replaceAll(/[^a-z0-9]/g, '_')
-      .slice(0, 20);
-  }
-  
-  const maxAttempts = 20;
-  
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const candidateId = attempt === 0 ? baseId : `${baseId}_${attempt}`;
-    
-    // Verifica se ID já existe
-    const { data: existing } = await supabase
-      .from('usuarios')
-      .select('id')
-      .eq('id', candidateId)
-      .single();
-    
-    if (!existing) {
-      return candidateId;
-    }
-  }
-  
-  // Se não conseguiu gerar ID único, usa timestamp
-  return `${baseId}_${Date.now()}`;
-}
-
 export async function POST(request: Request) {
+  const client = await pool.connect();
+  
   try {
     // Verifica autenticação de admin
     const token = request.headers.get('cookie')?.match(/authToken=([^;]+)/)?.[1];
@@ -142,7 +113,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createAdminClient();
     const results = {
       success: 0,
       errors: [] as string[],
@@ -173,7 +143,7 @@ export async function POST(request: Request) {
         }
 
         // Limpa e valida CPF
-        const cpf = cpfValue.replace(/\D/g, '');
+        const cpf = cpfValue.replaceAll(/\D/g, '');
         if (cpf.length !== 11) {
           results.errors.push(`CPF inválido para ${nomeValue}: ${cpfValue}`);
           continue;
@@ -197,65 +167,36 @@ export async function POST(request: Request) {
         };
 
         // Verifica se usuário já existe (por email ou CPF)
-        const { data: existingUser } = await supabase
-          .from('usuarios')
-          .select('id, email, cpf')
-          .or(`email.eq.${userData.email},cpf.eq.${cpf}`)
-          .single();
+        const { rows: existingUsers } = await client.query(
+          `SELECT id, email, cpf FROM usuarios WHERE email = $1 OR cpf = $2`,
+          [userData.email, cpf]
+        );
 
-        if (existingUser) {
+        if (existingUsers.length > 0) {
           // Atualiza usuário existente
-          const { error } = await supabase
-            .from('usuarios')
-            .update({
-              nome: userData.nome,
-              email: userData.email,
-              cpf: userData.cpf,
-              categoria: userData.categoria,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', existingUser.id);
-
-          if (error) {
-            results.errors.push(`Erro ao atualizar ${userData.nome}: ${error.message}`);
-            continue;
-          }
+          const existingUser = existingUsers[0];
+          await client.query(
+            `UPDATE usuarios 
+             SET nome = $1, email = $2, cpf = $3, categoria = $4, updated_at = NOW()
+             WHERE id = $5`,
+            [userData.nome, userData.email, userData.cpf, userData.categoria, existingUser.id]
+          );
         } else {
-          // Gera ID único automaticamente
-          const userId = await generateUniqueUserId(supabase, userData.email, userData.nome);
-          
-          if (!userId) {
-            results.errors.push(`Erro ao gerar ID único para ${userData.nome}`);
-            continue;
-          }
-          
-          const { error } = await supabase
-            .from('usuarios')
-            .insert({
-              id: userId,
-              nome: userData.nome,
-              email: userData.email,
-              cpf: userData.cpf,
-              categoria: userData.categoria,
-              status: true,
-              ativo: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
-
-          if (error) {
-            if (error.code === '23505') {
-              results.errors.push(`Usuário já existe: ${userData.email} ou CPF ${userData.cpf}`);
-            } else {
-              results.errors.push(`Erro ao inserir ${userData.nome}: ${error.message}`);
-            }
-            continue;
-          }
+          // PostgreSQL gera UUID automaticamente via gen_random_uuid()
+          await client.query(
+            `INSERT INTO usuarios (nome, email, cpf, categoria, status, ativo, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+            [userData.nome, userData.email, userData.cpf, userData.categoria, true, true]
+          );
         }
 
         results.success++;
-      } catch (error) {
-        results.errors.push(`Erro ao processar linha: ${error instanceof Error ? error.message : String(error)}`);
+      } catch (error: any) {
+        if (error.code === '23505') {
+          results.errors.push(`Usuário já existe: ${(row as any).email} ou CPF ${(row as any).cpf}`);
+        } else {
+          results.errors.push(`Erro ao processar linha: ${error.message}`);
+        }
       }
     }
 
@@ -272,5 +213,7 @@ export async function POST(request: Request) {
       },
       { status: 500 }
     );
+  } finally {
+    client.release();
   }
 }
