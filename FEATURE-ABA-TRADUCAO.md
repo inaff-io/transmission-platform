@@ -4,6 +4,8 @@
 
 Adicionada nova aba **"Tradução"** na interface de transmissão, posicionada entre "Bate Papo" e "Programação".
 
+**✨ ATUALIZAÇÃO**: Agora usa o **mesmo sistema da Programação** - link vem do banco de dados!
+
 ## 🎯 Localização
 
 **Página**: `/transmission` (Área protegida)
@@ -15,54 +17,109 @@ Adicionada nova aba **"Tradução"** na interface de transmissão, posicionada e
 
 ## 🔧 Implementação
 
-### Arquivo Modificado
-`src/app/(protected)/transmission/page.tsx`
+### Arquivos Modificados
 
-### Alterações Realizadas
+#### Frontend: `src/app/(protected)/transmission/page.tsx`
 
-#### 1. Estado da Aba
+**Mudanças**:
+1. ✅ Estado `traducaoLink` para armazenar link do banco
+2. ✅ Busca link via API `/api/links/active`
+3. ✅ Renderiza usando `dangerouslySetInnerHTML` (igual programação)
+4. ✅ Fallback: "Tradução não disponível" quando sem link
+
+#### Backend: `src/app/api/links/active/route.ts`
+
+**Mudanças**:
+1. ✅ Tipo `'traducao'` adicionado ao `PublicLink`
+2. ✅ Função `normalizeTipo()` reconhece 'traducao'
+3. ✅ Função `pickFromLinks()` busca link de tradução
+4. ✅ Conversão automática de URL para iframe
+5. ✅ Sandbox e permissions aplicados automaticamente
+6. ✅ Fallback via `FALLBACK_TRADUCAO_URL`
+
+### Estado e API
+
+### Estado e API
+
+#### 1. Estado do Frontend
+
 ```typescript
-// ANTES
-const [rightTab, setRightTab] = useState<'programacao' | 'chat'>('chat');
-
-// DEPOIS
+const [traducaoLink, setTraducaoLink] = useState<Link | null>(null);
 const [rightTab, setRightTab] = useState<'programacao' | 'traducao' | 'chat'>('chat');
 ```
 
-#### 2. Botão da Aba
-```tsx
-<button
-  onClick={() => setRightTab('traducao')}
-  className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-t-md border-b-2 ${
-    rightTab === 'traducao' 
-      ? 'border-blue-600 text-blue-700 dark:text-blue-400' 
-      : 'border-transparent text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
-  }`}
->
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-      d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-  </svg>
-  Tradução
-</button>
+#### 2. Busca na API
+
+```typescript
+const data = await fetch('/api/links/active').then(r => r.json());
+setTraducaoLink(data.traducao ?? null);
 ```
 
-#### 3. Conteúdo da Aba
+#### 3. Renderização Condicional
+
 ```tsx
-rightTab === 'traducao' ? (
-  <div className="absolute inset-0 rounded-lg overflow-hidden shadow bg-white dark:bg-gray-900">
-    <iframe
-      src="https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all"
-      className="w-full h-full border-0"
-      title="Tradução Simultânea"
-      allow="microphone; camera; autoplay"
-      sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-    />
-  </div>
-)
+{traducaoLink?.url ? (
+  <div dangerouslySetInnerHTML={{ __html: traducaoLink.url }} />
+) : (
+  <div>Tradução não disponível</div>
+)}
 ```
 
-## 🔒 Segurança do iFrame
+### Conversão Automática de URL
+
+Quando você cadastra **apenas a URL** no banco:
+
+```
+https://www.snapsight.com/live-channel/l/93a696ad...
+```
+
+O sistema **automaticamente converte** para:
+
+```html
+<iframe 
+  src="https://www.snapsight.com/live-channel/l/93a696ad..." 
+  style="width:100%; height:100%; border:none;" 
+  allow="microphone; camera; autoplay" 
+  sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+></iframe>
+```
+
+## � Como Configurar
+
+### Via Painel Admin (Recomendado)
+
+1. Login como **admin**
+2. Vá para `/admin`
+3. **Adicionar Novo Link**:
+   - **Tipo**: `traducao`
+   - **URL**: `https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all`
+4. **Salvar**
+
+### Via SQL (Alternativa)
+
+```sql
+INSERT INTO links (tipo, url, ativo_em, atualizado_em) 
+VALUES (
+  'traducao',
+  'https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all',
+  NOW(),
+  NOW()
+);
+```
+
+### Via Variável de Ambiente (Fallback)
+
+Arquivo `.env.local`:
+
+```env
+FALLBACK_TRADUCAO_URL=https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all
+```
+
+**Prioridade**: Banco de Dados > Variável de Ambiente > "Não Disponível"
+
+📖 **Guia Completo**: Veja `COMO-ADICIONAR-TRADUCAO.md` para mais detalhes.
+
+## �🔒 Segurança do iFrame
 
 ### Atributos de Segurança Aplicados
 
@@ -118,7 +175,39 @@ O **Snapsight** é uma plataforma de tradução simultânea que requer:
    - Ouvir tradução simultânea
    - Ajustar configurações de áudio
 
-## 🔗 URL Embedada
+## � Fluxo de Uso
+
+1. **Admin configura** link de tradução no banco
+2. **Usuário acessa** `/transmission`
+3. **API retorna** `{ traducao: { url: "..." } }`
+4. **Frontend renderiza** aba "Tradução"
+5. **Usuário clica** na aba
+6. **iframe carrega** automaticamente
+7. **Usuário seleciona** idioma no Snapsight
+
+## 🗄️ Estrutura do Banco
+
+### Tabela `links`
+
+| Campo | Tipo | Exemplo |
+|-------|------|---------|
+| `id` | UUID | `550e8400-e29b-41d4-a716-...` |
+| `tipo` | VARCHAR | `'traducao'` |
+| `url` | TEXT | `https://www.snapsight.com/...` |
+| `ativo_em` | TIMESTAMP | `2025-10-21 10:30:00` |
+| `atualizado_em` | TIMESTAMP | `2025-10-21 10:30:00` |
+
+### Normalização do Tipo
+
+O sistema aceita variações:
+- ✅ `traducao`
+- ✅ `Tradução`
+- ✅ `TRADUCAO`
+- ✅ `tradução`
+
+Todos são normalizados para `'traducao'`.
+
+## �🔗 URL Embedada
 
 ```
 https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/attendee/locations?lid=all
@@ -172,29 +261,48 @@ https://www.snapsight.com/live-channel/l/93a696ad-92ee-436e-850a-68a971f9bf50/at
 
 ## 🔮 Melhorias Futuras
 
-1. **Link Dinâmico**
-   - Admin pode configurar URL do Snapsight
-   - Trocar canal de tradução sem alterar código
-   - Ativar/desativar tradução conforme necessidade
+1. **Interface Admin Melhorada**
+   - Toggle on/off para tradução
+   - Preview do iframe
+   - Validação de URL
 
-2. **Indicador de Idiomas**
-   - Badge mostrando idiomas disponíveis
-   - Contador de ouvintes por idioma
-   - Status da tradução (online/offline)
+2. **Múltiplos Idiomas**
+   - Suporte a vários links de tradução
+   - Seletor de idioma na própria aba
+   - Links por idioma específico
 
-3. **Integração com API**
-   - Verificar se tradução está ativa
-   - Mostrar número de tradutores conectados
-   - Estatísticas de uso
+3. **Indicador de Status**
+   - Badge "AO VIVO" quando tradução ativa
+   - Contador de ouvintes
+   - Idiomas disponíveis no momento
 
-4. **Fallback**
-   - Mensagem quando tradução não disponível
-   - Link direto para abrir em nova janela
+4. **Analytics**
+   - Rastreamento de uso da tradução
+   - Idiomas mais acessados
+   - Tempo médio de uso
+
+5. **Fallback Inteligente**
+   - Mensagem personalizada quando offline
+   - Link para abrir em nova janela
    - Instruções de uso
+
+## 📝 Commits Relacionados
+
+1. **9d85c84** - feat: Adiciona aba de Tradução com Snapsight embed
+   - Implementação inicial com iframe hardcoded
+
+2. **2bd5704** - feat: Tradução agora usa link do banco de dados (padrão programação)
+   - Migração para sistema dinâmico
+   - API atualizada
+   - Conversão automática de URL
+
+3. **7c07648** - docs: Adiciona guia de configuração do link de tradução
+   - Documentação completa
 
 ---
 
 **Data**: 21/10/2025  
-**Status**: ✅ IMPLEMENTADO  
+**Status**: ✅ IMPLEMENTADO E INTEGRADO AO BANCO  
 **Tipo**: Feature (Nova Funcionalidade)  
+**Padrão**: Mesmo sistema da Programação  
 **Impacto**: Melhoria na experiência de usuários multilíngues
