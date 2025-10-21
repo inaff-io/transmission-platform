@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/jwt-server';
-import { createServerClient } from '@/lib/supabase/server';
 import { createPgClient } from '@/lib/db/pg-client';
+import pkg from 'pg';
+const { Client } = pkg;
+import { dbConfig } from '@/lib/db/config';
+
+function createDirectPgClient() {
+  return new Client(dbConfig);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,6 +46,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const client = createDirectPgClient();
+  
   try {
     // Accept either Authorization: Bearer <token> header or authToken cookie
     let token: string | undefined;
@@ -63,24 +71,20 @@ export async function POST(request: NextRequest) {
 
     console.log('[POST /api/usuarios] User:', payload.email, 'creating new user');
 
-    const supabase = createServerClient();
+    await client.connect();
     
     // Verifica se o usuário logado é admin
-    const { data: user, error: userError } = await supabase
-      .from('usuarios')
-      .select('id, categoria, email')
-      .eq('email', payload.email)
-      .single();
+    const userResult = await client.query(
+      'SELECT id, categoria, email FROM usuarios WHERE email = $1',
+      [payload.email]
+    );
 
-    if (userError) {
-      console.error('[POST /api/usuarios] Error fetching logged user:', userError);
-      return NextResponse.json({ error: 'Erro ao verificar permissões' }, { status: 500 });
-    }
-
-    if (!user) {
+    if (userResult.rows.length === 0) {
       console.error('[POST /api/usuarios] Logged user not found:', payload.email);
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
+
+    const user = userResult.rows[0];
 
     if (user.categoria !== 'admin') {
       console.error('[POST /api/usuarios] User is not admin:', user.categoria);
@@ -109,17 +113,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar se já existe usuário com mesmo email ou CPF
-    const { data: existingUsers, error: checkError } = await supabase
-      .from('usuarios')
-      .select('id, email, cpf')
-      .or(`email.eq.${email},cpf.eq.${cpfLimpo}`);
+    const checkResult = await client.query(
+      'SELECT id, email, cpf FROM usuarios WHERE email = $1 OR cpf = $2',
+      [email, cpfLimpo]
+    );
 
-    if (checkError) {
-      console.error('[POST /api/usuarios] Error checking duplicates:', checkError);
-    }
-
-    if (existingUsers && existingUsers.length > 0) {
-      const existing = existingUsers[0];
+    if (checkResult.rows.length > 0) {
+      const existing = checkResult.rows[0];
       console.error('[POST /api/usuarios] Duplicate found:', existing);
       return NextResponse.json(
         { error: `Já existe um usuário com este ${existing.email === email ? 'email' : 'CPF'}` },
@@ -127,51 +127,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gera ID único baseado no email
-    const userId = email.split('@')[0].toLowerCase().replaceAll(/[^a-z0-9]/g, '_');
+    // Criar novo usuário (sem especificar ID, deixa o banco gerar UUID)
+    const insertResult = await client.query(
+      `INSERT INTO usuarios (nome, email, cpf, categoria, status, ativo, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+       RETURNING *`,
+      [nome, email.toLowerCase(), cpfLimpo, categoria || 'user', true, true]
+    );
 
-    // Criar novo usuário
-    const { data: newUser, error } = await supabase
-      .from('usuarios')
-      .insert([{ 
-        id: userId,
-        nome, 
-        email: email.toLowerCase(), 
-        cpf: cpfLimpo, 
-        categoria: categoria || 'user',
-        status: true,
-        ativo: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[POST /api/usuarios] Error creating user:', error);
-      
-      if (error.code === '23505') {
-        return NextResponse.json({ error: 'Usuário já existe (ID duplicado)' }, { status: 400 });
-      }
-      
-      return NextResponse.json(
-        { error: 'Erro ao criar usuário', details: error.message }, 
-        { status: 500 }
-      );
-    }
-
+    const newUser = insertResult.rows[0];
     console.log('[POST /api/usuarios] User created successfully:', newUser.email);
     return NextResponse.json(newUser);
   } catch (error) {
     console.error('[POST /api/usuarios] Unexpected error:', error);
+    
+    // Verifica erro de duplicata (PostgreSQL code 23505)
+    if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+      return NextResponse.json({ error: 'Usuário já existe' }, { status: 400 });
+    }
+    
     return NextResponse.json(
       { error: 'Erro interno do servidor', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
+  } finally {
+    await client.end();
   }
 }
 
 export async function DELETE(request: NextRequest) {
+  const client = createDirectPgClient();
+  
   try {
     // Accept either Authorization: Bearer <token> header or authToken cookie
     let token: string | undefined;
@@ -190,14 +176,14 @@ export async function DELETE(request: NextRequest) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const supabase = createServerClient();
-    const { data: user } = await supabase
-      .from('usuarios')
-      .select('categoria')
-      .eq('email', payload.email)
-      .single();
+    await client.connect();
+    
+    const userResult = await client.query(
+      'SELECT categoria FROM usuarios WHERE email = $1',
+      [payload.email]
+    );
 
-    if (user?.categoria !== 'admin') {
+    if (userResult.rows.length === 0 || userResult.rows[0].categoria !== 'admin') {
       return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
     }
 
@@ -208,19 +194,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'ID do usuário não fornecido' }, { status: 400 });
     }
 
-    const { error } = await supabase
-      .from('usuarios')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Erro ao excluir usuário:', error);
-      return NextResponse.json({ error: 'Erro ao excluir usuário' }, { status: 500 });
-    }
+    await client.query('DELETE FROM usuarios WHERE id = $1', [id]);
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error('Erro:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+  } finally {
+    await client.end();
   }
 }

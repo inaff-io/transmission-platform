@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/jwt-server';
-import { createServerClient } from '@/lib/supabase/server';
+import pkg from 'pg';
+const { Client } = pkg;
+import { dbConfig } from '@/lib/db/config';
+
+function createPgClient() {
+  return new Client(dbConfig);
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const client = createPgClient();
+  
   try {
     const token = request.cookies.get('authToken')?.value;
     if (!token) {
@@ -22,24 +30,20 @@ export async function GET(
 
     console.log('[GET /api/usuarios/[id]] User:', payload.email, 'requesting user:', params.id);
 
-    const supabase = createServerClient();
+    await client.connect();
     
     // Verifica se o usuário logado é admin
-    const { data: user, error: userError } = await supabase
-      .from('usuarios')
-      .select('id, categoria, email')
-      .eq('email', payload.email)
-      .single();
+    const userResult = await client.query(
+      'SELECT id, categoria, email FROM usuarios WHERE email = $1',
+      [payload.email]
+    );
 
-    if (userError) {
-      console.error('[GET /api/usuarios/[id]] Error fetching logged user:', userError);
-      return NextResponse.json({ error: 'Erro ao verificar permissões' }, { status: 500 });
-    }
-
-    if (!user) {
+    if (userResult.rows.length === 0) {
       console.error('[GET /api/usuarios/[id]] Logged user not found:', payload.email);
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
+
+    const user = userResult.rows[0];
 
     if (user.categoria !== 'admin') {
       console.error('[GET /api/usuarios/[id]] User is not admin:', user.categoria);
@@ -47,22 +51,17 @@ export async function GET(
     }
 
     // Busca o usuário a ser editado
-    const { data: usuario, error } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('id', params.id)
-      .single();
+    const usuarioResult = await client.query(
+      'SELECT * FROM usuarios WHERE id = $1',
+      [params.id]
+    );
 
-    if (error) {
-      console.error('[GET /api/usuarios/[id]] Error fetching target user:', error);
-      return NextResponse.json({ error: 'Erro ao buscar usuário' }, { status: 500 });
-    }
-
-    if (!usuario) {
+    if (usuarioResult.rows.length === 0) {
       console.error('[GET /api/usuarios/[id]] Target user not found:', params.id);
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
+    const usuario = usuarioResult.rows[0];
     console.log('[GET /api/usuarios/[id]] Success! Returning user:', usuario.email);
     return NextResponse.json(usuario);
   } catch (error) {
@@ -71,6 +70,8 @@ export async function GET(
       { error: 'Erro interno do servidor', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
+  } finally {
+    await client.end();
   }
 }
 
@@ -78,6 +79,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const client = createPgClient();
+  
   try {
     const token = request.cookies.get('authToken')?.value;
     if (!token) {
@@ -93,24 +96,20 @@ export async function PUT(
 
     console.log('[PUT /api/usuarios/[id]] User:', payload.email, 'updating user:', params.id);
 
-    const supabase = createServerClient();
+    await client.connect();
     
     // Verifica se o usuário logado é admin
-    const { data: user, error: userError } = await supabase
-      .from('usuarios')
-      .select('id, categoria, email')
-      .eq('email', payload.email)
-      .single();
+    const userResult = await client.query(
+      'SELECT id, categoria, email FROM usuarios WHERE email = $1',
+      [payload.email]
+    );
 
-    if (userError) {
-      console.error('[PUT /api/usuarios/[id]] Error fetching logged user:', userError);
-      return NextResponse.json({ error: 'Erro ao verificar permissões' }, { status: 500 });
-    }
-
-    if (!user) {
+    if (userResult.rows.length === 0) {
       console.error('[PUT /api/usuarios/[id]] Logged user not found:', payload.email);
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
+
+    const user = userResult.rows[0];
 
     if (user.categoria !== 'admin') {
       console.error('[PUT /api/usuarios/[id]] User is not admin:', user.categoria);
@@ -123,18 +122,13 @@ export async function PUT(
     console.log('[PUT /api/usuarios/[id]] Update data:', { nome, email, cpf, categoria });
 
     // Verifica se email ou CPF já existe em outro usuário
-    const { data: existingUsers, error: checkError } = await supabase
-      .from('usuarios')
-      .select('id, email, cpf')
-      .or(`email.eq.${email},cpf.eq.${cpf}`)
-      .neq('id', params.id);
+    const checkResult = await client.query(
+      'SELECT id, email, cpf FROM usuarios WHERE (email = $1 OR cpf = $2) AND id != $3',
+      [email, cpf, params.id]
+    );
 
-    if (checkError) {
-      console.error('[PUT /api/usuarios/[id]] Error checking duplicates:', checkError);
-    }
-
-    if (existingUsers && existingUsers.length > 0) {
-      console.error('[PUT /api/usuarios/[id]] Duplicate found:', existingUsers[0]);
+    if (checkResult.rows.length > 0) {
+      console.error('[PUT /api/usuarios/[id]] Duplicate found:', checkResult.rows[0]);
       return NextResponse.json(
         { error: 'Email ou CPF já está em uso por outro usuário' },
         { status: 400 }
@@ -142,24 +136,20 @@ export async function PUT(
     }
 
     // Atualiza o usuário
-    const { data: updatedUser, error } = await supabase
-      .from('usuarios')
-      .update({ 
-        nome, 
-        email, 
-        cpf, 
-        categoria,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', params.id)
-      .select()
-      .single();
+    const updateResult = await client.query(
+      `UPDATE usuarios 
+       SET nome = $1, email = $2, cpf = $3, categoria = $4, updated_at = NOW()
+       WHERE id = $5
+       RETURNING *`,
+      [nome, email, cpf, categoria, params.id]
+    );
 
-    if (error) {
-      console.error('[PUT /api/usuarios/[id]] Error updating user:', error);
-      return NextResponse.json({ error: 'Erro ao atualizar usuário', details: error.message }, { status: 500 });
+    if (updateResult.rows.length === 0) {
+      console.error('[PUT /api/usuarios/[id]] User not found for update:', params.id);
+      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
+    const updatedUser = updateResult.rows[0];
     console.log('[PUT /api/usuarios/[id]] Success! Updated user:', updatedUser.email);
     return NextResponse.json(updatedUser);
   } catch (error) {
@@ -168,5 +158,7 @@ export async function PUT(
       { error: 'Erro interno do servidor', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
+  } finally {
+    await client.end();
   }
 }
